@@ -111,9 +111,9 @@ class Predictor:
         if include_noise is True:
 
             # Sample from a multivariate, zero-mean Gaussian distribution with the process covariance matrix 
-            additive_gaussian_noise = np.random.multivariate_normal(mean=np.zeros(xdim), cov=Q, size=1)
+            additive_gaussian_noise = np.random.multivariate_normal(mean=np.zeros(xdim), cov=Q, size=1).flatten()
             predicted_state_with_noise = predicted_state.y[:,-1] + additive_gaussian_noise
-            
+
             self.prior_state = predicted_state_with_noise 
 
             #return predicted_state_with_noise

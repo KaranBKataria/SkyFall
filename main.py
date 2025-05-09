@@ -41,7 +41,7 @@ for count, meas in enumerate(noisy_data):
 
     time.sleep(period)
 
-    pred.process_model(verbose=False)
+    pred.process_model(include_noise=True, verbose=False)
 
     pred.eval_JacobianF(
         G=G, M_e=M_e, Cd=C_d,
