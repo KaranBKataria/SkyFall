@@ -1,5 +1,4 @@
 import time
-# import numpy as np
 
 import SkyFall
 import SkyFall.predictor
@@ -10,6 +9,8 @@ from SkyFall.utils.global_variables import *
 
 # Set the delay in which data is fed into the predictor
 period: float = 1
+n_samples: int = 10
+nth_measurement: int = 5
 
 # Initialise the different covariance matrices
 P = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[10000, 10000, 10000, 10000])
@@ -57,8 +58,8 @@ for count, meas in enumerate(noisy_data):
 
     pred.assimilated_posterior_prediction(verbose=True)
 
-    if count % 5 == 0:
-        pred.forecast(n_samples=10, final_time=20_000, verbose=False)
+    if count % nth_measurement == 0:
+        pred.forecast(n_samples=n_samples, final_time=20_000, verbose=False)
 
         if 2*pred.forecasted_states_std[-1][0] <= 4700:
             print('Two standard deviations of forecasted crash state below 4.7km; terminating predictor.')
