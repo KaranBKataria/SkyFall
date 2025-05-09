@@ -23,6 +23,8 @@ R_e = 6.371e6
 # Acceleration due to Earth's gravity in metres per second
 g0 = 9.80665 
 
+# Angular frequency of the Earth's rotation
+omega_E = 7.2921150e-5
 
 # Atmosphere constants (https://en.wikipedia.org/wiki/Barometric_formula)
 
@@ -53,14 +55,14 @@ layers = [
 # ISEE-3 satellite constants (https://en.wikipedia.org/wiki/International_Cometary_Explorer)
 
 # Mass of ISEE-3 satellite in kilograms 
-m_s = 479  
+m_s = 479
 
 # Drag coefficient
 C_d = 2.2
 
-# Dimensions
+# Radius of cross-sectional area (Satellite assumed to be cylindrical)
 r = 1.77/2
 
-# Compute area of the ISEE-3 satellite
+# Compute cross-sectional area of the ISEE-3 satellite
 # A = 2*np.pi*(r)*1.58
 A = np.pi * r**2 # front area of the satellite, check with peter to see if this is correct

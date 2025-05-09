@@ -170,3 +170,12 @@ def longitude_cal(distance: float) -> float:
     longitude = (degrees + 180)%360 - 180
 
     return longitude
+
+
+def measurement_model(state: np.array) -> np.array:
+    r, theeta = state
+
+    x = r*np.cos(theeta)
+    y = r*np.sin(theeta)
+
+    

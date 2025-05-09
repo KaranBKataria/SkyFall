@@ -12,6 +12,8 @@ period: float = 1
 n_samples: int = 10
 nth_measurement: int = 5
 
+print(m_s)
+
 # Initialise the different covariance matrices
 P = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[10000, 10000, 10000, 10000])
 R = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[100_000, 100_000, 100_000, 100_000])
@@ -25,6 +27,8 @@ t0 = 0
 # Obtain times, real and noisy data from the simulator
 sim = SkyFall.simulator.simulator.Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
 times, real_data, noisy_data = sim.get_measurements()
+
+print(real_data.shape)
 
 # Create an object of the predictor
 pred = SkyFall.predictor.predictor.Predictor(
@@ -59,6 +63,7 @@ for count, meas in enumerate(noisy_data):
     pred.assimilated_posterior_prediction(verbose=True)
 
     if count % nth_measurement == 0:
+
         pred.forecast(n_samples=n_samples, final_time=20_000, verbose=False)
 
         if 2*pred.forecasted_states_std[-1][0] <= 4700:
