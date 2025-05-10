@@ -60,7 +60,7 @@ class Predictor:
         self.forecasted_times_mean = []
         self.forecasted_times_std = []
 
-    def process_model(self, include_noise=False, verbose: bool = True):# -> np.array:
+    def process_model(self, include_noise=True, verbose: bool = True):# -> np.array:
         """
         This function outputs a prior state estimate (by default with no additive Gaussian noise) under the
         non-linear process model given by the equations of motion at the next time step.
@@ -130,7 +130,7 @@ class Predictor:
     def measurement_model(self):
         return self.prior_state
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar, omega_E=omega_E) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -154,7 +154,8 @@ class Predictor:
     
         # Ensure posterior state of previous time step is an array and extract it's components
         state = np.asarray(self.posterior_state)
-        x, y, vx, vy = state
+        # x, y, vx, vy = state
+        r, theta, r_dot, th_dot = state
 
         # Select correct parameters of the Barometric formula based on altitude (y)
         for b in reversed(range(len(layers))):
@@ -165,8 +166,9 @@ class Predictor:
                 break
 
         # Evaluate the Jacobian F
-        F = F_func(x, y, vx, vy, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar)
-
+        # F = F_func(x, y, vx, vy, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar)
+        F = F_func(r, theta, r_dot, th_dot, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar, omega_E)
+        
         self.JacobianF = F
 
     def eval_JacobianH(self):

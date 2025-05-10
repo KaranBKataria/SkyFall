@@ -98,7 +98,8 @@ def air_density(y: float) -> float:
 def equations_of_motion(time: float, state: np.array) -> list[float]:
     """
     This function contains the process model (dynamics of the satellite)
-    ; the equations of motion (EoMs).
+    ; the equations of motion (EoMs) in terms of the global coordinates
+    about Earth's center.
 
         Inputs:
                 time: The current timestep
@@ -110,38 +111,46 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
     """
 
     # Extract components of the state and compute air density 
-    x, y, vx, vy = state
-    rho = air_density(y)
+    r, theta, r_dot, th_dot = state
 
-    # Compute relative speed
-    v_rel = np.hypot(vx, vy)
+    # MAYBE KEEP THIS BUT REPLACE y = r*sin(theta)
+    # rho = air_density(y)
 
-    # Test to see if v_rel is small to prevent division by small number
+    # Used this to prevent any exp(+inf) overflows
+    alt = max(r - R_e, 0.0)
+    # rho = air_density(alt)
+    rho = air_density(alt, time, theta)
+
+    # Compute relative speed to rotating atmosphere
+    v_rel = np.hypot(r_dot, r*(th_dot - omega_E))
+
+    # Test to see if v_rel is small to prevent any numerical errors
     if abs(v_rel) <= 1e-8:
         raise ValueError('Magnitude of relative velocity is too small - division by small value')
     
-    # If vel_rel is too close to 0, skip division
-    if v_rel>0:
-        a_drag = 0.5 * (rho * C_d * A / m_s) * v_rel**2
-        ax_drag = -a_drag * vx / v_rel
-        ay_drag = -a_drag * vy / v_rel
-    else: 
-        ax_drag = ay_drag = 0.0
+    # Compute intermediary variables
+    drag = 0.5 * rho * C_d * A / m_s
+    g_centre = G*M_e / r**2
 
-    # Compute acceleration due to gravity in the y-component
-    ay_grav = -G * M_e / (R_e + y)**2
+    a_r_drag = -drag * v_rel * r_dot
+    a_th_drag = -drag * v_rel * (r*(th_dot - omega_E))
 
-    f = [vx, vy, ax_drag, ay_drag + ay_grav]
+    # Compute acceleration components
+    r_dotdot = (r*th_dot**2 - g_centre + a_r_drag)
+    th_dotdot = ((-2 * r_dot * th_dot / r) + a_th_drag / r)
+
+    # Output the process model
+    f = [r_dot, th_dot, r_dotdot, th_dotdot]
 
     return f
 
-def hit_ground(t: float, state: np.array) -> float:
+def hit_ground(time: float, state: np.array) -> float:
     """
     This function defines a termination criteria for the
     ODE solver; terminate when the satellite makes contact with
     the surface of the Earth.
     """
-    return state[1]
+    return state[0] - R_e
 
 hit_ground.terminal = True
 hit_ground.direction = -1  # only triggered when y decreasing
@@ -172,10 +181,10 @@ def longitude_cal(distance: float) -> float:
     return longitude
 
 
-def measurement_model(state: np.array) -> np.array:
-    r, theeta = state
+# def measurement_model(state: np.array) -> np.array:
+#     r, theeta = state
 
-    x = r*np.cos(theeta)
-    y = r*np.sin(theeta)
+#     x = r*np.cos(theeta)
+#     y = r*np.sin(theeta)
 
     

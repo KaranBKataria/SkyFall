@@ -60,7 +60,7 @@ m_s = 479
 # Drag coefficient
 C_d = 2.2
 
-# Radius of cross-sectional area (Satellite assumed to be cylindrical)
+# Radius of cross-sectional area (satellite assumed to be cylindrical)
 r = 1.77/2
 
 # Compute cross-sectional area of the ISEE-3 satellite
