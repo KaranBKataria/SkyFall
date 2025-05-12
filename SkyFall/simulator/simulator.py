@@ -17,6 +17,15 @@ class Simulator:
 
     def __init__(self, initial_state: np.array, measurement_covariance: np.array, timestep: float, t0: float = 0, t_end: float = 20000.0):
         
+        assert isinstance(initial_state, (list, np.ndarray)), "Initial state must be a list or a Numpy array"
+
+        assert np.isfinite(initial_state).all() == True, "Initial state must contain finite or non-NaN values"
+        assert np.isfinite(measurement_covariance).all() == True, "Measurement covariance matrix must contain finite or non-NaN values"
+
+        assert timestep > 0, "Time step must be a non-negative float"
+        assert t0 > 0, "Initial time must be a non-negative float"
+        assert t_end > 0 and t_end > t0, "Final time must be a non-negative float and greater than the initial time, t0"
+
         # Define an attribute for the measurement covariance matrix R, which will be used to sample a multivariate
         # Gaussian distribution to perturb the radar measurements with noise
 

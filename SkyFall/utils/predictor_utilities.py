@@ -24,6 +24,11 @@ def covariance_matrix_initialiser(variances: np.array, covariances=None) -> np.a
         Output:
                 cov_mat: a valid (symmetric, square) covariance matrix 
     """
+
+    assert np.isfinite(variances).all() == True, "Variances must be finite or non-NaN values"
+
+    if covariances is not None:
+        assert np.isfinite(covariances).all() == True, "Covariances must be finite or non-NaN values"
     
     # Ensures the passed in arguements are Numpy arrays (not lists) 
     variances = np.asarray(variances)
@@ -109,6 +114,9 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
                 f: Return the process model
     """
 
+    assert time > 0, "Time value must be a non-negative float"
+    assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
+
     # Extract components of the state and compute air density 
     r, theta, r_dot, th_dot = state
 
@@ -149,6 +157,10 @@ def hit_ground(time: float, state: np.array) -> float:
     ODE solver; terminate when the satellite makes contact with
     the surface of the Earth.
     """
+
+    assert time > 0, "Time value must be a non-negative float"
+    assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
+
     return state[0] - R_e
 
 hit_ground.terminal = True
@@ -172,6 +184,8 @@ def longitude_cal(distance: float) -> float:
                 longitude: The longitude at given distance 
     """
 
+    assert distance > 0, "Distance must be a non-negative float"
+
     one_degree_longitude_to_km = 40075 / 360
 
     degrees = distance / one_degree_longitude_to_km
@@ -192,6 +206,9 @@ def polar_to_cartesian_state(state: np.array) -> np.array:
                 cartesian_state: a state vector in the Cartesian
                                  system
     """
+
+    assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
+
     r, theta, r_dot, th_dot = state
 
     # Convert into the Cartesian system
@@ -219,6 +236,8 @@ def measurement_model_h(state: np.array, radar_longitude: float) -> np.array:
         Outputs:
                 h: the measurement model output h(state)
     """
+
+    assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
 
     # Extract state components
     r, theta, r_dot, th_dot = state
