@@ -1,5 +1,6 @@
 from SkyFall.utils.predictor_utilities import *
 from SkyFall.utils.analytical_F import *
+from SkyFall.utils.analytical_H import *
 from SkyFall.predictor.predictor import Predictor
 from SkyFall.utils.global_variables import *
 from SkyFall.simulator.simulator import Simulator

@@ -15,7 +15,7 @@ from ..utils.predictor_utilities import *
 
 class Simulator:
 
-    def __init__(self, initial_state: np.array, measurement_covariance: np.array, timestep: float, t0: float, t_end: float = 20000.0):
+    def __init__(self, initial_state: np.array, measurement_covariance: np.array, timestep: float, t0: float = 0, t_end: float = 20000.0):
         
         # Define an attribute for the measurement covariance matrix R, which will be used to sample a multivariate
         # Gaussian distribution to perturb the radar measurements with noise

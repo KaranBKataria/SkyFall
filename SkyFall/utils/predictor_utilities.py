@@ -107,7 +107,6 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
 
         Outputs:
                 f: Return the process model
-
     """
 
     # Extract components of the state and compute air density 
@@ -118,8 +117,8 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
 
     # Used this to prevent any exp(+inf) overflows
     alt = max(r - R_e, 0.0)
-    # rho = air_density(alt)
-    rho = air_density(alt, time, theta)
+    rho = air_density(alt)
+    # rho = air_density(alt, time, theta)
 
     # Compute relative speed to rotating atmosphere
     v_rel = np.hypot(r_dot, r*(th_dot - omega_E))

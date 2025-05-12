@@ -17,7 +17,7 @@ P = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[1
 R = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[100_000, 100_000, 100_000, 100_000])
 Q = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[1000, 1000, 1000, 1000])
 
-# Initialise the initial conditions and timestep
+# Initialise the initial conditions and tiggmestep
 x0 = np.array([0.0, 600e3, 100e3, 0])
 del_t = 10
 t0 = 0
