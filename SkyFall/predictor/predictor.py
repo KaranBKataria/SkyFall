@@ -347,9 +347,15 @@ class Predictor:
             print(f'Current posterior state:\n {self.posterior_state}\n')
             print(f'Current posterior state covariance matrix:\n {self.posterior_state_covariance}\n')
 
-        # Append to posterior trajectories list
-        self.posterior_traj_states.append(self.posterior_state)
+        # Append to posterior trajectories list in Cartesian coordinates (for visualisation purposes)
+        x = self.posterior_state[0] * np.cos(self.posterior_state[1])
+        x_dot = self.posterior_state[2] * np.cos(self.posterior_state[1]) - self.posterior_state[0] * self.posterior_state[-1] * np.sin(self.posterior_state[1])
+        y = self.posterior_state[0] * np.sin(self.posterior_state[1])
+        y_dot = self.posterior_state[2] * np.sin(self.posterior_state[1]) + self.posterior_state[0] * self.posterior_state[-1] * np.cos(self.posterior_state[1])
+
+        self.posterior_traj_states.append(np.array([x, y, x_dot, y_dot]))
         self.posterior_traj_times.append(self.t)
+
         #return x_state_assimilated, P_assimilated
 
     def forecast(self, n_samples: int, final_time=20_000, verbose: bool = True):#-> (np.array, np.array):
