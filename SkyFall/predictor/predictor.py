@@ -23,6 +23,14 @@ class Predictor:
         
         assert isinstance(initial_state, (list, np.ndarray)), "Initial state must be a list or a Numpy array"
 
+        assert np.isfinite(initial_state).all() == True, "Initial state must contain finite or non-NaN values"
+        assert np.isfinite(process_covariance).all() == True, "Process covariance matrix must contain finite or non-NaN values"
+        assert np.isfinite(measurement_covariance).all() == True, "Measurement covariance matrix must contain finite or non-NaN values"
+        assert np.isfinite(state_covariance).all() == True, "State covariance matrix must contain finite or non-NaN values"
+
+        assert timestep > 0, "Time step must be a non-negative float"
+        assert t0 > 0, "Initial time must be a non-negative float"
+
         # Define the covariance matrices. NB: There will be 3 seperate states the state vector and state covariance matrix
         # can take.
         self.process_covariance = process_covariance
@@ -37,7 +45,7 @@ class Predictor:
         self.posterior_state = initial_state
 
         # Track the posterior trajectory
-        self.posterior_traj_states = [initial_state]
+        self.posterior_traj_states = [polar_to_cartesian_state(initial_state)]
         self.posterior_traj_times = [t0]
 
         # Define the timesteps, initial time and a time variable t to track the evolution of the predictor
@@ -159,7 +167,8 @@ class Predictor:
                     m: Mass of the satellite (kg)
                     R_star: Universal gas constant
                     g0: Acceleration due to Earth's gravity (m/s^2)
-                    M_molar: Molar mass of Earth's air in kilograms per mole 
+                    M_molar: Molar mass of Earth's air in kilograms per mole
+                    omega_E: Angular velocity of the Earth
 
             Outputs:
                     self.JacobianF: The Jacobian evaluated at the posterior state of the
