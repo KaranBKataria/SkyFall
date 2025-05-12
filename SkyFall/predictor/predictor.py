@@ -127,8 +127,22 @@ class Predictor:
         if verbose is True:
             print(f'Current prior state:\n {self.prior_state}\n')
     
-    def measurement_model(self):
-        return self.prior_state
+    def measurement_model(self, theta_R: float) -> np.array:
+        """
+        This function returns the evaluate of the measurement model h
+        at the prior state estimate as part of the EKF algorithm.
+
+            Input:
+                    self
+                    theta_R: the longitude of the 'active' satellite at time self.t
+            
+            Output:
+                    h: the measurement model output
+        """
+
+        h = measurement_model_h(self.prior_state, radar_longitude=theta_R)
+
+        return h
 
     def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar, omega_E=omega_E) -> np.array:
 
@@ -171,10 +185,29 @@ class Predictor:
         
         self.JacobianF = F
 
-    def eval_JacobianH(self):
+    def eval_JacobianH(self, theta_R: float, R_e=R_e, omega_E=omega_E) -> np.array:
+        """
+        This function evaluates the Jacobian of the measurement process at the current
+        prior state.
+
+            Inputs:
+                    theta_R: the longitude of the 'active' satellite at time self.t
+                    R_e: the radius of the Earth
+                    omega_E: the angular velocity of the Earth
+
+            Outputs:
+                    self.JacobianH: the evaluated Jacobian of the measurement model
+        """
+
+        # Ensure posterior state of previous time step is an array and extract it's components
+        state = np.asarray(self.posterior_state)
+        r, theta, r_dot, th_dot = state
         
-        n_dims = np.asarray(self.prior_state).size
-        H = np.eye(N=n_dims)
+        # Evaluate you the Jacobian of the measurement model
+        H = H_func(r, theta, r_dot, th_dot, R_e, omega_E, theta_R)
+
+        # n_dims = np.asarray(self.prior_state).size
+        # H = np.eye(N=n_dims)
         self.JacobianH = H
 
     def update_prior_belief(
@@ -241,7 +274,7 @@ class Predictor:
             Output:
                     res: the residual value, y
         """
-        residual = np.array(measurement - measurement_model(self))
+        residual = np.array(measurement - measurement_model(self, theta_R=theta_R))
 
         # If there is a single value (i.e. size-1 array), reshape it for compatibility with later linear algebra
         if residual.size == 1:
@@ -348,12 +381,7 @@ class Predictor:
             print(f'Current posterior state covariance matrix:\n {self.posterior_state_covariance}\n')
 
         # Append to posterior trajectories list in Cartesian coordinates (for visualisation purposes)
-        x = self.posterior_state[0] * np.cos(self.posterior_state[1])
-        x_dot = self.posterior_state[2] * np.cos(self.posterior_state[1]) - self.posterior_state[0] * self.posterior_state[-1] * np.sin(self.posterior_state[1])
-        y = self.posterior_state[0] * np.sin(self.posterior_state[1])
-        y_dot = self.posterior_state[2] * np.sin(self.posterior_state[1]) + self.posterior_state[0] * self.posterior_state[-1] * np.cos(self.posterior_state[1])
-
-        self.posterior_traj_states.append(np.array([x, y, x_dot, y_dot]))
+        self.posterior_traj_states.append(polar_to_cartesian_state(self.posterior_state))
         self.posterior_traj_times.append(self.t)
 
         #return x_state_assimilated, P_assimilated
@@ -429,61 +457,3 @@ class Predictor:
 
             print(f'Forecasted mean crash time:\n {np.array(crash_times).reshape(n_samples, 1).mean(axis=0)}\n')
             print(f'Forecasted standard deviation of crash times:\n {np.array(crash_times).reshape(n_samples, 1).std(axis=0)}\n')
-
-
-if __name__ == "__main__":
-
-    # This toy problem tests the functionality of the predictor class;  the values
-    # are choosen arbitrarily
-
-    P = covariance_matrix_initialiser(variances=[0.1, 0.5, 0.3, 0.5])
-    R = covariance_matrix_initialiser(variances=[0.1, 0.2, 2, 3])
-    Q = covariance_matrix_initialiser(variances=[0.9, 0.3, 4, 5])
-    # F = np.eye(4)
-    # H = np.eye(4)*2
-        
-    # h = lambda x: x * 0.3
-
-    x0 = np.array([0.0, 120e3, 7.8e3, 0])
-    z = np.array([7.79986841e+03, 1.19995270e+05, 7.79973680e+03, -9.46008824e+00])
-    del_t = 0.1
-    t0 = 0
-
-    pred = Predictor(
-        process_covariance=Q,
-        measurement_covariance=R,
-        state_covariance=P,
-        initial_state=x0,
-        timestep=del_t,
-        t0=t0
-    )
-
-    print(f'Intial time t0: {pred.t}')
-    print(f'Intial prior state: {pred.prior_state}\n')
-    pred.process_model()
-    # print(f'Time of first iteration {pred.t}')
-    # print(f'Prior state after first iteration {pred.prior_state}\n')
-
-    pred.eval_JacobianF()
-    # print(f'Jacobian F:\n {pred.JacobianF}\n')
-
-    # print(f'Intial state covariance:\n {pred.posterior_state_covariance}\n')
-    pred.update_prior_belief()
-    # print(f'Updated, prior state covariance:\n {pred.prior_state_covariance}\n')
-
-    pred.residual(measurement=z)
-    # print(f'Residual value:\n {pred.res}\n')
-
-    pred.eval_JacobianH()
-    # print(f'The H matrix is:\n {pred.JacobianH}\n')
-
-    pred.kalman_gain()
-    # print(f'Kalman gain:\n {pred.kalman_gain_matrix}\n')
-
-    # print(f'Prior state:\n {pred.prior_state}\n')
-    # print(f'Prior state covariance:\n {pred.prior_state_covariance}\n')
-    pred.assimilated_posterior_prediction()
-    # print(f'Posterior state:\n {pred.posterior_state}\n')
-    # print(f'Posterior state covariance:\n {pred.posterior_state_covariance}\n')
-
-    pred.forecast(n_samples=10)

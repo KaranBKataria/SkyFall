@@ -179,11 +179,72 @@ def longitude_cal(distance: float) -> float:
 
     return longitude
 
+def polar_to_cartesian_state(state: np.array) -> np.array:
+    """
+    This function converts the state vector, which is in polar
+    coordinates, into a state vector in the Cartesian coordinate
+    system.
 
-# def measurement_model(state: np.array) -> np.array:
-#     r, theeta = state
+        Inputs:
+                state: a state vector of the satellite
 
-#     x = r*np.cos(theeta)
-#     y = r*np.sin(theeta)
+        Outputs:
+                cartesian_state: a state vector in the Cartesian
+                                 system
+    """
+    r, theta, r_dot, th_dot = state
+
+    # Convert into the Cartesian system
+    x = r * np.cos(theta)
+    x_dot = r_dot * np.cos(theta) - r * th_dot * np.sin(theta)
+    y = r * np.sin(theta)
+    y_dot = r_dot * np.sin(theta) + r * th_dot * np.cos(theta)
+
+    cartesian_state = np.array([x, y, x_dot, y_dot])
+
+    return cartesian_state
+
+
+def measurement_model_h(state: np.array, radar_longitude: float) -> np.array:
+    """
+    This function implements the measurement model h, which converts the prior state
+    of the predictor (EKF) at time t and converts it into a measurement expected
+    to be recieved from the radar station at time t.
+
+        Inputs:
+                state: the prior state of the predictor at time t (x_bar)
+                radar_longitude: the longitude of the 'active radar' station at time t
+                                 which provided the measurement to the predictor
+
+        Outputs:
+                h: the measurement model output h(state)
+    """
+
+    # Extract state components
+    r, theta, r_dot, th_dot = state
+
+    # Compute the position of the satellite in Cartesian coordinates
+    r_s = np.array([r*np.cos(theta), r*np.sin(theta)])
+
+    # Compute the position of the 'active' radar station at time t in Cartesian coordinates
+    r_r = np.array([R_e*np.cos(radar_longitude), R_e*np.sin(radar_longitude)])
+
+    # Compute the velocity of the satellite in Cartesian coordinates
+    v_s = polar_to_cartesian_state(state)[-2:]
+
+    # Compute the velocity of the radar station in Cartesian coordinates
+    v_r = np.array([-R_e*omega_E*np.sin(radar_longitude), R_e*omega_E*np.cos(radar_longitude)])
+
+    # Compute the radial distance (range) between the satellite and the radar station
+    eta = np.linalg.norm(x=r_s - r_r)
+
+    # Compute the radial velocity between the satellite and the radar station
+    eta_dot = ((v_s - v_r).T @ (r_s - r_r)) / (eta)
+
+    h = np.array([eta, eta_dot])
+
+    return h
+
+
 
     
