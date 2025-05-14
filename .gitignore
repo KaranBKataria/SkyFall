@@ -1,0 +1,7 @@
+*.npz
+./venv
+__pycache__
+SkyFall/__pycache__
+SkyFall/predictor/__pycache__
+SkyFall/simulator/__pycache__
+SkyFall/utils/__pycache__
