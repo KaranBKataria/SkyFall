@@ -69,60 +69,71 @@ def covariance_matrix_initialiser(variances: np.array, covariances=None) -> np.a
 
     return cov_mat
 
-def barometric_air_density(y: float) -> float:
-    """
-    This function returns the air density at a given
-    altitude y using the Barometric formula.
-
-        Input:
-                y: Altitude of satellite (m) above Earth's surface
-        
-        Output:
-                rho: The air density at altitude y
-    """
-
-    # Pick highest b with h_b <= y
-    hb   = layers[0]["h"]
-    rhob = layers[0]["rho"]
-    Tb   = layers[0]["T"]
-
-    for b in reversed(range(len(layers))):
-        if y >= layers[b]["h"]:
-            hb   = layers[b]["h"]
-            rhob = layers[b]["rho"]
-            Tb   = layers[b]["T"]
-            break
-    
-    # Compute air density as a function of altitude (Barometric formula) 
-    rho = rhob * np.exp(-g0 * M_molar * (y - hb) / (R_star * Tb))
-    
-    return rho
-
-# def air_density(y: float) -> float:
+# def barometric_air_density(y: float) -> float:
 #     """
 #     This function returns the air density at a given
-#     altitude y based on the U.S. Standard Atmosphere
-#     1976 model.
+#     altitude y using the Barometric formula.
 
 #         Input:
-#                 y: Altitude of satellite (m)
+#                 y: Altitude of satellite (m) above Earth's surface
         
 #         Output:
 #                 rho: The air density at altitude y
 #     """
 
-#     if y < 0:
-#         y = 0.0
+#     # Pick highest b with h_b <= y
+#     hb   = layers[0]["h"]
+#     rhob = layers[0]["rho"]
+#     Tb   = layers[0]["T"]
 
-#     elif y > 86e3:
-#         Hs = 7000.0
-#         rho = base_rho[-1] * np.exp(-(y - 86e3)/Hs)
-
-#         return rho
-
-
-
+#     for b in reversed(range(len(layers))):
+#         if y >= layers[b]["h"]:
+#             hb   = layers[b]["h"]
+#             rhob = layers[b]["rho"]
+#             Tb   = layers[b]["T"]
+#             break
+    
+#     # Compute air density as a function of altitude (Barometric formula) 
+#     rho = rhob * np.exp(-g0 * M_molar * (y - hb) / (R_star * Tb))
+    
 #     return rho
+
+def USA76_air_density(y: float) -> float:
+    """
+    This function returns the air density at a given
+    altitude y based on the U.S. Standard Atmosphere
+    1976 model.
+
+        Input:
+                y: Altitude of satellite (m)
+        
+        Output:
+                rho: The air density at altitude y
+    """
+    if y < 0:
+        y = 0.0
+    
+    if y > 86e3:                      
+        h_s  = 7000.0
+        rho = base_rho[-1]*np.exp(-(y-86e3)/h_s)
+        return rho
+    
+    for index, (h_b, _, _) in enumerate(layers):
+        if y >= h_b:
+            layer = index
+
+    h_b, T_b, L_b = layers[layer]
+    h    = y - h_b
+    rho_b = base_rho[layer]
+
+    if L_b != 0.0:
+        T   = T_b + L_b*h
+        rho = rho_b * (T_b/T)**(1 + g0/(R_air*L_b))
+
+    else:
+        rho = rho_b * np.exp(-g0*h/(R_air*T_b))
+
+    return rho
 
 
 def equations_of_motion(time: float, state: np.array) -> list[float]:
@@ -147,7 +158,7 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
 
     # Used this to prevent any exp(+inf) overflows
     altitude = max(r - R_e, 0.0)
-    rho = barometric_air_density(y=altitude)
+    rho = USA76_air_density(y=altitude)
 
     # Compute relative speed to rotating atmosphere
     v_rel = np.hypot(r_dot, r*(th_dot - omega_E))

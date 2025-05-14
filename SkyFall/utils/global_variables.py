@@ -40,17 +40,35 @@ H = 8400.0
 # Universal gas constant
 R_star = 8.3144598
 
-# Atmosphere layers; the values used by the Barometric formula will change with altitude y (m)
-layers = [
-    {"h":     0.0, "rho":1.22500,   "T":288.15},
-    {"h": 11000.0, "rho":0.36391,   "T":216.65},
-    {"h": 20000.0, "rho":0.08803,   "T":216.65},
-    {"h": 32000.0, "rho":0.01322,   "T":228.65},
-    {"h": 47000.0, "rho":0.00143,   "T":270.65},
-    {"h": 51000.0, "rho":0.00086,   "T":270.65},
-    {"h": 71000.0, "rho":0.000064,  "T":214.65},
+# Specific Gas Constant
+R_air = 287.05287
+
+# US Standard atmospheric model layers
+layers = [ # H_b, T_b, L_b           
+    (0.0,       288.15, -6.5e-3),
+    (11e3,      216.65,  0.0   ),
+    (20e3,      216.65,  1.0e-3),
+    (32e3,      228.65,  2.8e-3),
+    (47e3,      270.65,  0.0   ),
+    (51e3,      270.65, -2.8e-3),
+    (71e3,      214.65, -2.0e-3),
+    (84.852e3,  186.867, 0.0   ),
 ]
 
+# kg/m^3 at sea level
+rho0 = 1.225        
+
+# Compute a list of base densities at each layer             
+base_rho = [rho0]
+for k in range(1, len(layers)):
+    H_b, T_b, L_b = layers[k-1]
+    H_t           = layers[k][0]
+    dh            = H_t - H_b
+    if L_b != 0.0:
+        fac = (T_b / (T_b + L_b*dh))**(1 + g0/(R_air*L_b))
+    else:
+        fac = np.exp(-g0*dh/(R_air*T_b))
+    base_rho.append(base_rho[-1] * fac)
 
 # ISEE-3 satellite constants (https://en.wikipedia.org/wiki/International_Cometary_Explorer)
 

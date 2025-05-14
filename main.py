@@ -54,8 +54,8 @@ for count, (meas, theta_R) in enumerate(zip(noisy_data, active_radar_longitudes)
 
     pred.eval_JacobianF(
         G=G, M_e=M_e, Cd=C_d,
-        A=A, m=m_s, R_star=R_star,
-        g0=g0, M_molar=M_molar, omega_E=omega_E, R_e=R_e)
+        A=A, m=m_s, R_air=R_air,
+        g0=g0, omega_E=omega_E, R_e=R_e)
 
     pred.update_prior_belief(verbose=False)
 

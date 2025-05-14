@@ -155,7 +155,7 @@ class Predictor:
 
         return h
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar, omega_E=omega_E, R_e=R_e) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -186,27 +186,43 @@ class Predictor:
         # Select correct parameters of the Barometric formula based on altitude (r)
         altitude = max(r - R_e, 0.0)
 
-        # Pick highest b with h_b <= y
-        h_b   = layers[0]["h"]
-        rho_b = layers[0]["rho"]
-        T_b   = layers[0]["T"]
+        if altitude >= 86e3:
+            h_s = 7000.0
+            rho_b = base_rho[-1]
+            h_b = 86e3
 
-        for b in reversed(range(len(layers))):
-            if altitude >= layers[b]["h"]:
-                h_b   = layers[b]["h"]
-                rho_b = layers[b]["rho"]
-                T_b   = layers[b]["T"]
-                break
-
-        # Evaluate the Jacobian F
-        # F = F_func(x, y, vx, vy, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar)
-        F = F_func(
-            r=r, theta=theta, r_dot=r_dot, th_dot=th_dot,
-            G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, rho_b=rho_b,
-            R_star=R_star, g0=g0, T_b=T_b, h_b=h_b, M_molar=M_molar, R_e=R_e, omega_E=omega_E
-        )
+            F = F_func3(r=r, theta=theta, r_dot=r_dot, th_dot=th_dot, 
+                        G=G, M_e=M_e, Cd=Cd, A=A, m=m, rho_b=rho_b, R_air=R_air,
+                        g0=g0, h_b=h_b, h_s=h_s, R_e=R_e, omega_E=omega_E)
+            
+            self.JacobianF = F
         
-        self.JacobianF = F
+        elif altitude < 86e3:
+
+            for index, (h_b, _, _) in enumerate(layers):
+                if altitude >= h_b:
+                    layer = index
+            
+            h_b, T_b, L_b = layers[layer]
+            rho_b = base_rho[layer]
+
+            if L_b != 0.0:
+                
+                F = F_func1(
+                    r=r, theta=theta, r_dot=r_dot, th_dot=th_dot,
+                    G=G, M_e=M_e, Cd=Cd, A=A, m=m, rho_b=rho_b, R_air=R_air,
+                    g0=g0, T_b=T_b, h_b=h_b, L_b=L_b, R_e=R_e, omega_E=omega_E)
+                
+                self.JacobianF = F
+
+            else:
+                
+                F = F_func2(
+                    r=r, theta=theta, r_dot=r_dot, th_dot=th_dot,
+                    G=G, M_e=M_e, Cd=Cd, A=A, m=m, rho_b=rho_b, R_air=R_air,
+                    g0=g0, T_b=T_b, h_b=h_b, R_e=R_e, omega_E=omega_E)
+
+                self.JacobianF = F
 
     def eval_JacobianH(self, theta_R: float, R_e=R_e, omega_E=omega_E) -> np.array:
         """
@@ -227,7 +243,7 @@ class Predictor:
         r, theta, r_dot, th_dot = state
         
         # Evaluate you the Jacobian of the measurement model
-        H = H_func(r, theta, r_dot, th_dot, R_e, omega_E, theta_R)
+        H = H_func(r=r, theta=theta, r_dot=r_dot, th_dot=th_dot, R_e=R_e, omega_E=omega_E, theta_R=theta_R)
 
         # n_dims = np.asarray(self.prior_state).size
         # H = np.eye(N=n_dims)
@@ -345,7 +361,7 @@ class Predictor:
                 
         # Create intermediate variable
         S = H @ P_bar @ H.T + R
-    
+
         # Compute the Kalman Gain using linear solve (not inversion due to numerical instability)
         K = np.linalg.solve(S, (P_bar @ H.T).T).T
 
