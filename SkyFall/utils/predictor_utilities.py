@@ -69,14 +69,13 @@ def covariance_matrix_initialiser(variances: np.array, covariances=None) -> np.a
 
     return cov_mat
 
-
-def air_density(y: float) -> float:
+def barometric_air_density(y: float) -> float:
     """
     This function returns the air density at a given
-    altitude y.
+    altitude y using the Barometric formula.
 
         Input:
-                y: Altitude of satellite (m)
+                y: Altitude of satellite (m) above Earth's surface
         
         Output:
                 rho: The air density at altitude y
@@ -99,6 +98,32 @@ def air_density(y: float) -> float:
     
     return rho
 
+# def air_density(y: float) -> float:
+#     """
+#     This function returns the air density at a given
+#     altitude y based on the U.S. Standard Atmosphere
+#     1976 model.
+
+#         Input:
+#                 y: Altitude of satellite (m)
+        
+#         Output:
+#                 rho: The air density at altitude y
+#     """
+
+#     if y < 0:
+#         y = 0.0
+
+#     elif y > 86e3:
+#         Hs = 7000.0
+#         rho = base_rho[-1] * np.exp(-(y - 86e3)/Hs)
+
+#         return rho
+
+
+
+#     return rho
+
 
 def equations_of_motion(time: float, state: np.array) -> list[float]:
     """
@@ -114,37 +139,33 @@ def equations_of_motion(time: float, state: np.array) -> list[float]:
                 f: Return the process model
     """
 
-    assert time > 0, "Time value must be a non-negative float"
+    assert time >= 0, "Time value must be a non-negative float"
     assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
 
     # Extract components of the state and compute air density 
     r, theta, r_dot, th_dot = state
 
-    # MAYBE KEEP THIS BUT REPLACE y = r*sin(theta)
-    # rho = air_density(y)
-
     # Used this to prevent any exp(+inf) overflows
-    alt = max(r - R_e, 0.0)
-    rho = air_density(alt)
-    # rho = air_density(alt, time, theta)
+    altitude = max(r - R_e, 0.0)
+    rho = barometric_air_density(y=altitude)
 
     # Compute relative speed to rotating atmosphere
     v_rel = np.hypot(r_dot, r*(th_dot - omega_E))
 
     # Test to see if v_rel is small to prevent any numerical errors
     if abs(v_rel) <= 1e-8:
-        raise ValueError('Magnitude of relative velocity is too small - division by small value')
+        raise ValueError('Magnitude of relative velocity is too small - risk of numerical errors')
     
     # Compute intermediary variables
-    drag = 0.5 * rho * C_d * A / m_s
-    g_centre = G*M_e / r**2
+    drag = (0.5 * rho * C_d * A) / (m_s)
+    g_centre = (G*M_e) / (r**2)
 
     a_r_drag = -drag * v_rel * r_dot
     a_th_drag = -drag * v_rel * (r*(th_dot - omega_E))
 
     # Compute acceleration components
     r_dotdot = (r*th_dot**2 - g_centre + a_r_drag)
-    th_dotdot = ((-2 * r_dot * th_dot / r) + a_th_drag / r)
+    th_dotdot = ((-2 * r_dot * th_dot) + a_th_drag) / (r)
 
     # Output the process model
     f = [r_dot, th_dot, r_dotdot, th_dotdot]
@@ -158,11 +179,12 @@ def hit_ground(time: float, state: np.array) -> float:
     the surface of the Earth.
     """
 
-    assert time > 0, "Time value must be a non-negative float"
+    assert time >= 0, "Time value must be a non-negative float"
     assert np.isfinite(state).all() == True, "State values must be finite or non-NaN values"
 
-    return state[0] - R_e
+    R_e = 6.371e6
 
+    return state[0] - R_e
 hit_ground.terminal = True
 hit_ground.direction = -1  # only triggered when y decreasing
 
@@ -255,15 +277,46 @@ def measurement_model_h(state: np.array, radar_longitude: float) -> np.array:
     v_r = np.array([-R_e*omega_E*np.sin(radar_longitude), R_e*omega_E*np.cos(radar_longitude)])
 
     # Compute the radial distance (range) between the satellite and the radar station
-    eta = np.linalg.norm(x=r_s - r_r)
+    eta = np.linalg.norm(x=(r_s - r_r))
 
     # Compute the radial velocity between the satellite and the radar station
     eta_dot = ((v_s - v_r).T @ (r_s - r_r)) / (eta)
 
+    # Return array for the radar measurement
     h = np.array([eta, eta_dot])
 
     return h
 
 
+def physical_quantities(state: np.array, initial_state: np.array) -> np.array:
+    """
+    This function converts the polar states into physical quantities useful for
+    the visualiser, such as the distance travelled along the equator from the
+    starting point and the altitude of the satellite at time t.
 
+        Inputs:
+                state: The state of the satellite at the current time
+                initial_state: The initial state of the satellite, x0
+
+        Outputs:
+                physical_state: Returns the physical quantities of the state
+    """
+
+    # Extract the components of the current state
+    r, theta, r_dot, th_dot = state
+
+    # Compute distance travelled along the equator from the starting point
+    # Make it into [0, 2pi]
+    theta = theta % (2 * np.pi)
+    distance_travelled = R_e * ((theta - initial_state[1]) % (2 * np.pi))
+
+    # Compute altitude
+    altitude = r - R_e
     
+    # Compute velocities
+    v_x = polar_to_cartesian_state(state=state)[-2]
+    v_y = polar_to_cartesian_state(state=state)[-1]
+
+    physical_state = np.array([distance_travelled, altitude, v_x, v_y])
+
+    return physical_state

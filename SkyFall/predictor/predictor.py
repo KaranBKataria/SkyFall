@@ -28,8 +28,8 @@ class Predictor:
         assert np.isfinite(measurement_covariance).all() == True, "Measurement covariance matrix must contain finite or non-NaN values"
         assert np.isfinite(state_covariance).all() == True, "State covariance matrix must contain finite or non-NaN values"
 
-        assert timestep > 0, "Time step must be a non-negative float"
-        assert t0 > 0, "Initial time must be a non-negative float"
+        assert timestep > 0, "Time step must be a positive float"
+        assert t0 >= 0, "Initial time must be a non-negative float"
 
         # Define the covariance matrices. NB: There will be 3 seperate states the state vector and state covariance matrix
         # can take.
@@ -45,7 +45,7 @@ class Predictor:
         self.posterior_state = initial_state
 
         # Track the posterior trajectory
-        self.posterior_traj_states = [polar_to_cartesian_state(initial_state)]
+        self.posterior_traj_states = [physical_quantities(state=initial_state, initial_state=initial_state)]
         self.posterior_traj_times = [t0]
 
         # Define the timesteps, initial time and a time variable t to track the evolution of the predictor
@@ -109,7 +109,8 @@ class Predictor:
             t_eval=t_eval,
             events=hit_ground,
             rtol=1e-8,
-            atol=1e-8
+            atol=1e-8,
+            max_step=timestep
         )
 
         # Update global time variable
@@ -148,11 +149,13 @@ class Predictor:
                     h: the measurement model output
         """
 
-        h = measurement_model_h(self.prior_state, radar_longitude=theta_R)
+        prior_state = np.asarray(self.prior_state)
+
+        h = measurement_model_h(prior_state, radar_longitude=theta_R)
 
         return h
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar, omega_E=omega_E) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_star=R_star, g0=g0, M_molar=M_molar, omega_E=omega_E, R_e=R_e) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -180,9 +183,16 @@ class Predictor:
         # x, y, vx, vy = state
         r, theta, r_dot, th_dot = state
 
-        # Select correct parameters of the Barometric formula based on altitude (y)
+        # Select correct parameters of the Barometric formula based on altitude (r)
+        altitude = max(r - R_e, 0.0)
+
+        # Pick highest b with h_b <= y
+        h_b   = layers[0]["h"]
+        rho_b = layers[0]["rho"]
+        T_b   = layers[0]["T"]
+
         for b in reversed(range(len(layers))):
-            if y >= layers[b]["h"]:
+            if altitude >= layers[b]["h"]:
                 h_b   = layers[b]["h"]
                 rho_b = layers[b]["rho"]
                 T_b   = layers[b]["T"]
@@ -190,7 +200,11 @@ class Predictor:
 
         # Evaluate the Jacobian F
         # F = F_func(x, y, vx, vy, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar)
-        F = F_func(r, theta, r_dot, th_dot, G, M_e, Cd, A, m, rho_b, R_star, g0, T_b, h_b, M_molar, omega_E)
+        F = F_func(
+            r=r, theta=theta, r_dot=r_dot, th_dot=th_dot,
+            G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, rho_b=rho_b,
+            R_star=R_star, g0=g0, T_b=T_b, h_b=h_b, M_molar=M_molar, R_e=R_e, omega_E=omega_E
+        )
         
         self.JacobianF = F
 
@@ -254,13 +268,15 @@ class Predictor:
             M = np.asarray(control_covariance)
             
             P_bar = (F @ P @ F.T) + (V @ M @ V.T) + Q
+            P_bar = 0.5 * (P_bar + P_bar.T)
             self.prior_state_covariance = P_bar
 
             #return P_bar
         
         # Else, update the state covariance without any control inputs
         else: 
-            P_bar = (F @ P @ F.T) + Q 
+            P_bar = (F @ P @ F.T) + Q
+            P_bar = 0.5 * (P_bar + P_bar.T)
             self.prior_state_covariance = P_bar
 
             #return P_bar
@@ -268,7 +284,7 @@ class Predictor:
         if verbose is True:
             print(f'Current prior state covariance matrix:\n {self.prior_state_covariance}\n')
 
-    def residual(self, measurement: np.array, measurement_model=measurement_model, verbose: bool = True):# -> np.array:
+    def residual(self, measurement: np.array, theta_R: float, measurement_model=measurement_model, verbose: bool = True):# -> np.array:
         """
         This function computes the residual of the true measurement data and the predicted
         measurement data, computed from the measurement model and the prior state estimate 
@@ -321,7 +337,7 @@ class Predictor:
 
         # Ensure arrays have the correct shape for the linear algebra
         if P_bar.ndim == 1:
-            P = P.reshape(1, 1)
+            P_bar = P_bar.reshape(1, 1)
         elif R.ndim == 1:
             R = R.reshape(1, 1)
         elif H.ndim == 1:
@@ -379,6 +395,8 @@ class Predictor:
         dims = KH.shape[0]  # Determine dimensions to ensure dimensions of identity matrix are correct 
         I = np.identity(n=dims)
         P_assimilated = (I - KH) @ P_bar
+        P_assimilated = 0.5 * (P_assimilated + P_assimilated.T)
+
         self.posterior_state_covariance = P_assimilated
 
         # Compute the posterior (data assimilated) state vector
@@ -390,12 +408,12 @@ class Predictor:
             print(f'Current posterior state covariance matrix:\n {self.posterior_state_covariance}\n')
 
         # Append to posterior trajectories list in Cartesian coordinates (for visualisation purposes)
-        self.posterior_traj_states.append(polar_to_cartesian_state(self.posterior_state))
+        self.posterior_traj_states.append(physical_quantities(state=self.posterior_state, initial_state=self.initial_state))
         self.posterior_traj_times.append(self.t)
 
         #return x_state_assimilated, P_assimilated
 
-    def forecast(self, n_samples: int, final_time=20_000, verbose: bool = True):#-> (np.array, np.array):
+    def forecast(self, n_samples: int, final_time=4e9, verbose: bool = True):#-> (np.array, np.array):
         """
         This function, at each given time step after the data has been assimilated, forecasts the crash site and timing.
         Sampling-based (a.k.a Monte Carlo) uncertainty propogation has been used to obtain a distribution of the crash
@@ -418,6 +436,10 @@ class Predictor:
         state = np.asarray(self.posterior_state)
         state_covariance = np.asarray(self.posterior_state_covariance)
 
+        # Ensure posterior state covariance matrix is valid (symmetric and PSD)
+        assert np.allclose(state_covariance, state_covariance.T, atol=1e-10), "Posterior covariance matrix is not symmetric"
+        assert np.min(np.linalg.eigvalsh(state_covariance)) >= 0, "Posterior covariance matrix is not PSD"
+
         #  Extract CURRENT time and timestep
         t = self.t
         timestep = self.timestep
@@ -428,11 +450,17 @@ class Predictor:
 
         # Draw samples from the state distribution, centered on the state with a state covariance matrix
         samples = np.random.multivariate_normal(mean=state, cov=state_covariance, size=n_samples)
-    
+
+        print(f'Samples: {samples}')
+
+        if samples.size == 0:
+            raise AssertionError("No samples drawn from Gaussian distribution; invalid covariance matrix")
+
         t_eval = np.arange(t, final_time + timestep, timestep)
 
         # For each sample, solve the ODE system to obtain a distribution - this is sampling-based uncertainty propogation
         for sample in samples:
+
             predicted_state = solve_ivp(
                 fun=equations_of_motion,
                 t_span=[t, final_time],
@@ -442,10 +470,11 @@ class Predictor:
                 events=hit_ground,
                 rtol=1e-8,
                 atol=1e-8
+                # max_step=timestep
             )
-
-            predictions.append(predicted_state.y_events)
-            crash_times.append(predicted_state.t_events)
+            
+            predictions.append(physical_quantities(state=predicted_state.y_events[0].flatten(), initial_state=self.initial_state))
+            crash_times.append(predicted_state.t_events[0])
 
         # Return the distribution of predictions and timings, and their statistics, reshaped into an appropriate format
         predictions = np.array(predictions).reshape(n_samples, state.shape[0])
