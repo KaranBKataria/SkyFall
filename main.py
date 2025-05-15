@@ -1,11 +1,9 @@
 import time
 
-import SkyFall
-import SkyFall.predictor
-import SkyFall.simulator
-import SkyFall.simulator.simulator
-import SkyFall.utils
+from SkyFall.predictor import Predictor
+from SkyFall.simulator.simulator import Simulator
 from SkyFall.utils.global_variables import *
+from SkyFall.utils import predictor_utilities
 
 # Set the delay in which data is fed into the predictor
 period: float = 1
@@ -13,9 +11,9 @@ n_samples: int = 10
 nth_measurement: int = 5
 
 # Initialise the different covariance matrices
-P = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[1000, 1e-2, 1e-2, 1e-5])
-R = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[0.1**2, (0.0017)**2])
-Q = SkyFall.utils.predictor_utilities.covariance_matrix_initialiser(variances=[1e-3, 1e-6, 1e-3, 1e-6])
+P = predictor_utilities.covariance_matrix_initialiser(variances=[1000, 1e-2, 1e-2, 1e-5])
+R = predictor_utilities.covariance_matrix_initialiser(variances=[0.1**2, (0.0017)**2])
+Q = predictor_utilities.covariance_matrix_initialiser(variances=[1e-3, 1e-6, 1e-3, 1e-6])
 
 # Initialise the initial conditions and timestep
 
@@ -26,7 +24,7 @@ del_t = 50
 t0 = 0
 
 # Obtain times, real and noisy data from the simulator
-sim = SkyFall.simulator.simulator.Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
+sim = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
 times, real_data, noisy_data, active_radar_indices, active_radar_longitudes, crash_site = sim.get_measurements()
 
 # print(f'Noisy data shape: {noisy_data.shape}')
@@ -36,7 +34,7 @@ times, real_data, noisy_data, active_radar_indices, active_radar_longitudes, cra
 # print(f'Active radar longitudes shape: {active_radar_longitudes.shape}')
 
 # Create an object of the predictor
-pred = SkyFall.predictor.predictor.Predictor(
+pred = Predictor(
     process_covariance=Q,
     measurement_covariance=R,
     state_covariance=P,
@@ -84,7 +82,7 @@ for count, (meas, theta_R) in enumerate(zip(noisy_data, active_radar_longitudes)
             print('Two standard deviations of forecasted crash state below 4.7km; terminating predictor.')
             print(f'Predictor terminated after time {pred.t} seconds.')
             print(f'Final mean forecasted crash site:\nx = {pred.forecasted_states_mean[-1][0]/1000} km\n')
-            print(f'True crash site:\n x = {SkyFall.utils.physical_quantities(state=crash_site, initial_state=pred.initial_state)[0]/1000} km\n')
+            print(f'True crash site:\n x = {predictor_utilities.physical_quantities(state=crash_site, initial_state=pred.initial_state)[0]/1000} km\n')
             print(f'Final forecasted state standard deviation:\nx_std = {pred.forecasted_states_std[-1][0]/1000} km\n')
             print(f'Time difference between confident forecast and real data crash: {times[-1] - pred.t} seconds.')
             break
@@ -94,16 +92,16 @@ for count, (meas, theta_R) in enumerate(zip(noisy_data, active_radar_longitudes)
     
     break
 
-# # import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-# # plt.figure()
-# # plt.plot(np.asarray(pred.posterior_traj_states)[:,0]/1000, np.asarray(pred.posterior_traj_states)[:,1]/1000, marker='s', label='EKF state')
-# # plt.plot(real_data[:,0]/1000, real_data[:,1]/1000, marker='x', label='Real measurement data')
-# # plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
-# # plt.xlabel('Distance travelled (km)')
-# # plt.ylabel('Altitude (km)')
-# # plt.legend(loc='best')
-# # plt.show()
+# plt.figure()
+# plt.plot(np.asarray(pred.posterior_traj_states)[:,0]/1000, np.asarray(pred.posterior_traj_states)[:,1]/1000, marker='s', label='EKF state')
+# plt.plot(real_data[:,0]/1000, real_data[:,1]/1000, marker='x', label='Real measurement data')
+# plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
+# plt.xlabel('Distance travelled (km)')
+# plt.ylabel('Altitude (km)')
+# plt.legend(loc='best')
+# plt.show()
 
 
 # # # fig, ax = plt.subplots(1, 2)
