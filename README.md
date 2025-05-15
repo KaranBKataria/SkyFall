@@ -5,7 +5,7 @@ To use the package, clone this repository onto your local environment by typing 
 
 ```bash
 # Clone the repository
-git clone https://github.com/KaranBKataria/ES988-ISEE.git
+git clone https://github.com/KaranBKataria/SkyFall.git
 ```
 
 Once cloned, change directory into the `SkyFall` folder and create a Python virtual environment (via venv) to prevent crashing dependencies:
