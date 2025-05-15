@@ -29,6 +29,9 @@ class Simulator:
         assert t0 >= 0.0, "Initial time must be a non-negative float"
         assert t_end > 0.0 and t_end > t0, "Final time must be a positive float and greater than the initial time, t0"
 
+        # Define assertion statements to ensure covariance matrices are of the correct shape
+        assert measurement_covariance.shape == (2, 2), "Shape of measurement covariance matrix, R, must be (2, 2)"
+
         # Define an attribute for the measurement covariance matrix R, which will be used to sample a multivariate
         # Gaussian distribution to perturb the radar measurements with noise
 

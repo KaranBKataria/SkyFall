@@ -22,6 +22,7 @@ class Predictor:
             self, process_covariance, measurement_covariance, state_covariance, initial_state, timestep, t0):
         
         assert isinstance(initial_state, (list, np.ndarray)), "Initial state must be a list or a Numpy array"
+        initial_state = np.asarray(initial_state)
 
         assert np.isfinite(initial_state).all() == True, "Initial state must contain finite or non-NaN values"
         assert np.isfinite(process_covariance).all() == True, "Process covariance matrix must contain finite or non-NaN values"
@@ -30,6 +31,14 @@ class Predictor:
 
         assert timestep > 0, "Time step must be a positive float"
         assert t0 >= 0, "Initial time must be a non-negative float"
+
+        # Define assertion statements to ensure covariance matrices are of the correct shape
+        assert process_covariance.shape == (4, 4), "Shape of process covariance matrix, Q, must be (4, 4)"
+        assert measurement_covariance.shape == (2, 2), "Shape of measurement covariance matrix, R, must be (2, 2)"
+        assert state_covariance.shape == (4, 4), "Shape of state covariance matrix, P, must be (4, 4)"
+
+        # Define assert statement to ensure state vector is of the correct shape
+        assert initial_state.shape == (4,), "Shape of the initial state must be (4,)"
 
         # Define the covariance matrices. NB: There will be 3 seperate states the state vector and state covariance matrix
         # can take.
