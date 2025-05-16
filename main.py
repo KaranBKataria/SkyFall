@@ -1,11 +1,25 @@
+"""
+This script serves as an example for the user to understand how to use
+SkyFall, what user-defined arguements are required, the form of the output,
+what can be tweaked etc.
+
+Module: ES98B
+Group: ISEE-3
+"""
+
 from SkyFall.predictor import Predictor
 from SkyFall.simulator.simulator import Simulator
+from SkyFall.visualiser.visualiser import Visualiser
 from SkyFall.utils.global_variables import *
 from SkyFall.utils import predictor_utilities
 
+import matplotlib.pyplot as plt
+# import cartopy.crs as ccrs
+# import cartopy.feature as cfeature
+
 def main():
 
-    # Define user-specific parameters
+    # Define user-specified parameters
     
     # Number of forecast samples 
     n_samples: int = 10
@@ -16,25 +30,36 @@ def main():
     # Define the covariance matrices (NB: no covariances have been included, but this can optionally be added)
 
     # State covariance matrix (4x4)
-    P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1000, 1e-2, 1e-2, 1e-5], covariances=None)
+    P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[10**2, 1e-2**2, 1e1**2, 1e-5**2], covariances=None)
 
     # Measurement covariance matrix (2x2)
-    R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[0.1**2, (0.0017)**2], covariances=None)
+    R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[20**2, (0.0005)**2], covariances=None)
 
     # Process covariance matrix (4x4)
-    Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1e-3, 1e-6, 1e-3, 1e-6], covariances=None)
+    Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[2e1, 2e-6, 2e-1, 2e-8], covariances=None)
 
     # Initialise the initial conditions and timestep
 
     # NB: The state is in polar coordinates of the form r, theta, r_dot and th_dot
-    th_dot0: float = (np.sqrt(G*M_e / (R_e + 200e3))) / (R_e + 200e3)
-    x0: np.array = np.array([R_e+200e3, 0.0, 0.0, th_dot0])
-    del_t: float = 50.0
+    # Compute alitutude (m) and hence distance from Earth's centre
+    h: float = 200e3
+    r: float = R_e + h
+
+    # Compute initial angular velocity (> 0 for prograde motion; mimicing realistic satellite orbits)
+    th_dot0: float = ((np.sqrt(G*M_e / r))  / r)
+
+    # Initial state must be an array of shape 4x1
+    x0: np.array = np.array([r, 0.0, 0.0, th_dot0])
+
+    del_t: float = 50
     t0: float = 0.0
 
     # Obtain times, real and noisy data from the simulator
     sim = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
-    times, real_data, noisy_data, active_radar_indices, active_radar_longitudes, crash_site = sim.get_measurements()
+    times, real_data, noisy_data, active_radar_indices, active_radar_longitudes, crash_site, crash_time, real_traj \
+        = sim.get_measurements()
+    
+    print(crash_site)
 
     # print(f'Noisy data shape: {noisy_data.shape}')
     # print(f'Real data shape: {real_data.shape}')
@@ -69,7 +94,7 @@ def main():
         # Only update if a measurement is avaliable
         if np.isnan(meas).any() == False or np.isinf(meas).any() == False:
 
-            pred.residual(measurement=meas, theta_R=theta_R, verbose=False)
+            pred.residual(measurement=meas, theta_R=theta_R, verbose=True)
 
             pred.eval_JacobianH(theta_R=theta_R, R_e=R_e, omega_E=omega_E)
 
@@ -85,32 +110,85 @@ def main():
 
             pred.forecast(n_samples=n_samples, final_time=4e9, verbose=True)
 
-            if 2*pred.forecasted_states_std[-1][0] <= 4700:
+            if 2*pred.forecasted_states_std[-1][1] <= 0.0422:#4700:
+            # if count == 16:
                 print('Two standard deviations of forecasted crash state below 4.7km; terminating predictor.')
                 print(f'Predictor terminated after time {pred.t} seconds.')
-                print(f'Final mean forecasted crash site:\nx = {pred.forecasted_states_mean[-1][0]/1000} km\n')
-                print(f'True crash site:\n x = {predictor_utilities.physical_quantities(state=crash_site, initial_state=pred.initial_state)[0]/1000} km\n')
-                print(f'Final forecasted state standard deviation:\nx_std = {pred.forecasted_states_std[-1][0]/1000} km\n')
-                print(f'Time difference between confident forecast and real data crash: {times[-1] - pred.t} seconds.')
+
+                outputs = pred.get_outputs()
+                posterior_trajectories_LLA = outputs['posterior_traj_LLA']
+                posterior_trajectories_cartesian = outputs['posterior_traj_cart']
+                posterior_trajectory_times = outputs['posterior_traj_times']
+
+                forecasted_crash_LLA = outputs['crash_site_forecasts']
+                mean_forecasted_crash_LLA = outputs['mean_crash_sites']
+                mean_forecasted_crash_time = outputs['mean_crash_times']
+
+                # print(f'Final mean forecasted crash site:\n Latitude: 0 deg, Longitude: {mean_forecasted_crash_LLA[-1][]}\n')
+                print(f'Mean time of forecasted crash from t0 = {t0} seconds: {mean_forecasted_crash_time[-1][0]} seconds.')
+                print(f'Actual time of crash from t0 = {t0} seconds: {crash_time} seconds.')
+                # print(f'True crash site:\n x = {predictor_utilities.physical_quantities(state=crash_site, initial_state=pred.initial_state)[0]/1000} km\n')
+                # print(f'Final forecasted state standard deviation:\nx_std = {pred.forecasted_states_std[-1][0]/1000} km\n')
+                # print(f'Time difference between confident forecast and real data crash: {times[-1] - pred.t} seconds.')
+                
+                vis = Visualiser(
+                    times=posterior_trajectory_times,
+                    trajectory_cartesian=posterior_trajectories_cartesian,
+                    trajectory_LLA=posterior_trajectories_LLA,
+                    crash_lon_list=forecasted_crash_LLA
+                )
+
+                vis.plot_orbit()
+
+                # vis.animate_orbit()
+
+                vis.plot_crash_distribution()
+
+                vis.plot_height_vs_time()
+
+                # vis.plot_orbit_map()
+
                 break
 
         else:
             continue
         
-        break
+    # # Plotting ground track on a map
+    # plt.figure(figsize=(12,6))
+
+    # real_traj = np.array([predictor_utilities.ECI_to_ECEF(time=t, state=state)[-1] for t, state in zip(times, real_traj.T)])
+    
+    # plt.plot(times, real_traj[:,-1]/1000)
+    # plt.plot(posterior_trajectory_times, posterior_trajectories_LLA[-1])
+
+    # plt.show()
+
+    # ax = plt.axes(projection=ccrs.PlateCarree())
+    # ax.set_global()
+    # ax.coastlines()
+    # ax.add_feature(cfeature.BORDERS)
+    # ax.gridlines(draw_labels=True)
+
+    # # Plot satellite ground track (longitude vs latitude)
+    # ax.plot(posterior_trajectories_LLA[:,1], posterior_trajectories_LLA[:,0], marker='.', color='red', label='Satellite Track')
+    # ax.plot(mean_forecasted_crash_LLA[:,1], mean_forecasted_crash_LLA[:,0], marker='.', color='blue', label='Mean forecasted crash site')
+
+    # plt.title('Satellite Ground Track on Earth (Equator)')
+    # plt.legend()
+    # plt.show()
 
 if __name__ == "__main__":
-    main()
-# import matplotlib.pyplot as plt
 
-# plt.figure()
-# plt.plot(np.asarray(pred.posterior_traj_states)[:,0]/1000, np.asarray(pred.posterior_traj_states)[:,1]/1000, marker='s', label='EKF state')
-# plt.plot(real_data[:,0]/1000, real_data[:,1]/1000, marker='x', label='Real measurement data')
-# plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
-# plt.xlabel('Distance travelled (km)')
-# plt.ylabel('Altitude (km)')
-# plt.legend(loc='best')
-# plt.show()
+    main()
+
+    # plt.figure()
+    # plt.plot(np.asarray(pred.posterior_traj_states)[:,0]/1000, np.asarray(pred.posterior_traj_states)[:,1]/1000, marker='s', label='EKF state')
+    # plt.plot(real_data[:,0]/1000, real_data[:,1]/1000, marker='x', label='Real measurement data')
+    # plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
+    # plt.xlabel('Distance travelled (km)')
+    # plt.ylabel('Altitude (km)')
+    # plt.legend(loc='best')
+    # plt.show()
 
 
 # # # fig, ax = plt.subplots(1, 2)
