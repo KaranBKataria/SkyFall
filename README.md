@@ -3,7 +3,7 @@
 
 SkyFall is a Python-based library for simulating and predicting the crash site of a de-orbiting satellite on the equator of a spherical, rotating Earth. The package is by default based on the [ISEE-3](https://science.nasa.gov/mission/isee-3-ice/) satellite.
 
-For more details about the underlying functionality, assumptions and more, please see the documentation markdown file. 
+For more details about the underlying functionality, arguments, assumptions and more, please see the documentation markdown file. 
 
 ## Getting started
 
@@ -72,7 +72,21 @@ Although not common practice, all global variables have been imported using the 
 
 ## Usage
 
-SkyFall takes a 
+SkyFall takes a modular, class-based approach to simulating the de-orbit dynamics and predicting the crash site of the satellite. The package is broken up into the following modules: `simulator`, `predictor` and `visualiser`, with utility functions and global variables housed in the `utils` module.
+
+Below is a step-by-step guide on how to initialise, call and use the modules once imported as shown in the **Getting started** section.
+
+### Preliminaries
+
+The three primary modules 
+
+### Simulator
+
+To use the simulator, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
+
+```python
+simulator = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
+```
 
 ## Example script
 
