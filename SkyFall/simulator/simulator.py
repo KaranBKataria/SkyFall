@@ -47,7 +47,7 @@ class Simulator:
         # Define an attribute for the initial state
         self.initial_state = initial_state
 
-    def get_measurements(self, verbose: bool =True) -> tuple[np.array, np.array, np.array, np.array, np.array, np.array]:
+    def get_measurements(self, verbose: bool =True) -> tuple[np.array, np.array, np.array, np.array, np.array, np.array, np.array]:
 
         """
         This function produces real (noiseless) and noisy measurements (perturbed with
@@ -104,7 +104,7 @@ class Simulator:
         )
 
         # Extract the solutions
-        times, state_noiseless, crash_site = sol.t, sol.y, sol.y_events[0].flatten()
+        times, state_noiseless, crash_site, crash_time = sol.t, sol.y, sol.y_events[0].flatten(), sol.t_events[0].flatten()
 
         # Define lists to collect clean and noisy measurements
         measurement_noiseless = []
@@ -120,9 +120,10 @@ class Simulator:
             # Extract states
             r, theta, r_dot, th_dot = state
 
-            # Compute radar station longitudes in ECI at time t
-            theta_R = (theta_R0 + omega_E *  time) % (2*np.pi)
+            # Compute radar station longitudes in ECI at time t ([-pi, pi])
+            theta_R = (theta_R0 + omega_E *  time - np.pi) % (2*np.pi) - np.pi
 
+            # [-pi, pi]
             dth = ((theta - theta_R + np.pi) % (2*np.pi)) - np.pi
 
             # Obtain index of the radar station with the closest beam/measurement to satellite
@@ -130,10 +131,14 @@ class Simulator:
             active_radar_stations_per_time.append(index_active_radar)
 
             # Convert the ODE solutions to active radar station measurement
+
+            # [0, 2pi] 
             active_radar_longitude = theta_R[index_active_radar]
             radar_measurements_noiseless = measurement_model_h(state=state, radar_longitude=active_radar_longitude)
 
-            active_radar_station_longitudes_per_time.append((np.degrees(active_radar_longitude) + 180) % 360 - 180)
+            # active_radar_station_longitudes_per_time.append((np.degrees(active_radar_longitude) + 180) % 360 - 180)
+            # active_radar_station_longitudes_per_time.append((active_radar_longitude + np.pi) % (2*np.pi) - np.pi)
+            active_radar_station_longitudes_per_time.append(active_radar_longitude)
 
             # Perturb the 'real' radar measurements with Gaussian noise 
             gaussian_noise = np.random.multivariate_normal(
@@ -154,4 +159,4 @@ class Simulator:
         if verbose is True:
             print("Terminating simulator; outputting radar measurements and additional data.")
 
-        return times, measurement_noiseless, measurement_noise, active_radar_stations_per_time, active_radar_station_longitudes_per_time, crash_site
+        return times, measurement_noiseless, measurement_noise, active_radar_stations_per_time, active_radar_station_longitudes_per_time, crash_site, crash_time[0], state_noiseless.T
