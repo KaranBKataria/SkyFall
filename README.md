@@ -1,4 +1,10 @@
 
+# SkyFall
+
+SkyFall is a Python-based library for simulating and predicting the crash site of a de-orbiting satellite on the equator of a spherical, rotating Earth. The package is by default based on the [ISEE-3](https://science.nasa.gov/mission/isee-3-ice/) satellite.
+
+For more details about the underlying functionality, assumptions and more, please see the documentation markdown file. 
+
 ## Getting started
 
 To use the package, clone this repository onto your local environment by typing the following command into your shell:
@@ -63,6 +69,10 @@ from SkyFall.predictor import Predictor
 
 >[!NOTE]
 Although not common practice, all global variables have been imported using the snowflake command `*`—this is intentional, as it floods the namespace with essential global variables used throughout the package without calling, for example, `global_variables.M_e` or other aliases alike.
+
+## Usage
+
+SkyFall takes a 
 
 ## Example script
 
