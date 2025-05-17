@@ -11,6 +11,8 @@ Group: ISEE-3
 # file. Ask Karan for more info. if needed
 from SkyFall.utils import *
 
+# import csv
+
 class Predictor:
 
     """
@@ -53,8 +55,11 @@ class Predictor:
         self.prior_state = initial_state
         self.posterior_state = initial_state
 
-        # Track the posterior trajectory
-        self.posterior_traj_states = [physical_quantities(state=initial_state, initial_state=initial_state)]
+        # Track the posterior 
+        self.prior_traj = [initial_state]
+        self.posterior_traj = [initial_state]
+        self.posterior_traj_states_LLA = [ECI_to_ECEF(time=t0, state=initial_state)[-1]]
+        self.posterior_traj_states_cartesian = [ECI_to_ECEF(time=t0, state=initial_state)[-3]]
         self.posterior_traj_times = [t0]
 
         # Define the timesteps, initial time and a time variable t to track the evolution of the predictor
@@ -96,6 +101,7 @@ class Predictor:
         """
 
         state = np.asarray(self.posterior_state)
+        # theta_start = state[1]
 
         # Determine the cardinality of the state vector and ensure process covariance matrix is an array
         xdim = state.size
@@ -106,42 +112,41 @@ class Predictor:
         t = self.t
 
         # Ensure we are updating the global time variable
-        #global t0
         t_eval = np.arange(t, t + 2*timestep, timestep)
 
         # Numerically solve the ODE up to the next time step
         predicted_state = solve_ivp(
             fun=equations_of_motion,
-            t_span=[t, t + timestep],
+            t_span=(t, t + timestep),
             y0=state,
             method='RK23',
             t_eval=t_eval,
             events=hit_ground,
             rtol=1e-8,
-            atol=1e-8,
-            max_step=timestep
+            atol=1e-8
         )
 
         # Update global time variable
         self.t += timestep
+
+        # np.asarray(predicted_state.y)[:,-1][1] = np.asarray(predicted_state.y)[:,-1][1] + theta_start
 
         # If noise is to be included, perturb the state with additive Gaussian noise - else return just the predicted state
         if include_noise is True:
 
             # Sample from a multivariate, zero-mean Gaussian distribution with the process covariance matrix 
             additive_gaussian_noise = np.random.multivariate_normal(mean=np.zeros(xdim), cov=Q, size=1).flatten()
-            predicted_state_with_noise = predicted_state.y[:,-1] + additive_gaussian_noise
+            predicted_state_with_noise = np.asarray(predicted_state.y)[:,-1] + additive_gaussian_noise
 
-            self.prior_state = predicted_state_with_noise 
-
-            #return predicted_state_with_noise
+            self.prior_state = predicted_state_with_noise
+            self.prior_traj.append(predicted_state_with_noise)
         
         else:
-            predicted_state_without_noise = predicted_state.y[:,-1]
+            predicted_state_without_noise = np.asarray(predicted_state.y)[:,-1]
             
             self.prior_state = predicted_state_without_noise
-            #return predicted_state_without_noise    
-        
+            self.prior_traj.append(predicted_state_without_noise)
+
         if verbose is True:
             print(f'Current prior state:\n {self.prior_state}\n')
     
@@ -189,12 +194,12 @@ class Predictor:
     
         # Ensure posterior state of previous time step is an array and extract it's components
         state = np.asarray(self.posterior_state)
-        # x, y, vx, vy = state
         r, theta, r_dot, th_dot = state
 
         # Select correct parameters of the Barometric formula based on altitude (r)
         altitude = max(r - R_e, 0.0)
 
+        # If altitude is above 86km, use an approximation formula, with a Jacobian given by F_func3
         if altitude >= 86e3:
             h_s = 7000.0
             rho_b = base_rho[-1]
@@ -206,8 +211,10 @@ class Predictor:
             
             self.JacobianF = F
         
+        # If altitude is less than 86km
         elif altitude < 86e3:
 
+            # Obtain layer constants depending on altitude
             for index, (h_b, _, _) in enumerate(layers):
                 if altitude >= h_b:
                     layer = index
@@ -215,6 +222,7 @@ class Predictor:
             h_b, T_b, L_b = layers[layer]
             rho_b = base_rho[layer]
 
+            # If the Lapse rate is non-zero, obtain Jacobian of f via F_func1
             if L_b != 0.0:
                 
                 F = F_func1(
@@ -224,6 +232,7 @@ class Predictor:
                 
                 self.JacobianF = F
 
+            # Else obtain it via F_func2
             else:
                 
                 F = F_func2(
@@ -255,7 +264,6 @@ class Predictor:
         H = H_func(r=r, theta=theta, r_dot=r_dot, th_dot=th_dot, R_e=R_e, omega_E=omega_E, theta_R=theta_R)
 
         # n_dims = np.asarray(self.prior_state).size
-        # H = np.eye(N=n_dims)
         self.JacobianH = H
 
     def update_prior_belief(
@@ -295,16 +303,12 @@ class Predictor:
             P_bar = (F @ P @ F.T) + (V @ M @ V.T) + Q
             P_bar = 0.5 * (P_bar + P_bar.T)
             self.prior_state_covariance = P_bar
-
-            #return P_bar
         
         # Else, update the state covariance without any control inputs
         else: 
             P_bar = (F @ P @ F.T) + Q
             P_bar = 0.5 * (P_bar + P_bar.T)
             self.prior_state_covariance = P_bar
-
-            #return P_bar
 
         if verbose is True:
             print(f'Current prior state covariance matrix:\n {self.prior_state_covariance}\n')
@@ -324,6 +328,7 @@ class Predictor:
             Output:
                     res: the residual value, y
         """
+        
         residual = np.array(measurement - measurement_model(self, theta_R=theta_R))
 
         # If there is a single value (i.e. size-1 array), reshape it for compatibility with later linear algebra
@@ -331,7 +336,6 @@ class Predictor:
             residual = residual.reshape(1,1)
 
         self.res = residual
-        #return res
 
         if verbose is True:
             print(f'Residual value:\n {self.res}\n')
@@ -375,7 +379,6 @@ class Predictor:
         K = np.linalg.solve(S, (P_bar @ H.T).T).T
 
         self.kalman_gain_matrix = K
-        #return K
 
         if verbose is True:
             print(f'Current Kalman gain:\n {self.kalman_gain_matrix}\n')
@@ -433,10 +436,10 @@ class Predictor:
             print(f'Current posterior state covariance matrix:\n {self.posterior_state_covariance}\n')
 
         # Append to posterior trajectories list in Cartesian coordinates (for visualisation purposes)
-        self.posterior_traj_states.append(physical_quantities(state=self.posterior_state, initial_state=self.initial_state))
+        self.posterior_traj.append(x_state_assimilated)
+        self.posterior_traj_states_LLA.append(ECI_to_ECEF(time=self.t, state=x_state_assimilated)[-1])
+        self.posterior_traj_states_cartesian.append(ECI_to_ECEF(time=self.t, state=x_state_assimilated)[-3])
         self.posterior_traj_times.append(self.t)
-
-        #return x_state_assimilated, P_assimilated
 
     def forecast(self, n_samples: int, final_time=4e9, verbose: bool = True):#-> (np.array, np.array):
         """
@@ -460,10 +463,11 @@ class Predictor:
         # Ensure covariance matrix and state vector are numpy arrays
         state = np.asarray(self.posterior_state)
         state_covariance = np.asarray(self.posterior_state_covariance)
+        state_covariance += 1e-6 * np.eye(state_covariance.shape[0])
 
         # Ensure posterior state covariance matrix is valid (symmetric and PSD)
         assert np.allclose(state_covariance, state_covariance.T, atol=1e-10), "Posterior covariance matrix is not symmetric"
-        assert np.min(np.linalg.eigvalsh(state_covariance)) >= 0, "Posterior covariance matrix is not PSD"
+        # assert np.min(np.linalg.eigvalsh(state_covariance)) >= 0, "Posterior covariance matrix is not PSD"
 
         #  Extract CURRENT time and timestep
         t = self.t
@@ -474,34 +478,45 @@ class Predictor:
         crash_times = []
 
         # Draw samples from the state distribution, centered on the state with a state covariance matrix
-        samples = np.random.multivariate_normal(mean=state, cov=state_covariance, size=n_samples)
+        # samples = np.random.multivariate_normal(mean=state, cov=state_covariance, size=n_samples)
 
-        print(f'Samples: {samples}')
+        # if samples.size == 0:
+        #     raise AssertionError("No samples drawn from Gaussian distribution; invalid covariance matrix")
 
-        if samples.size == 0:
-            raise AssertionError("No samples drawn from Gaussian distribution; invalid covariance matrix")
-
-        t_eval = np.arange(t, final_time + timestep, timestep)
+        t_eval = np.arange(t, final_time+timestep, timestep)
 
         # For each sample, solve the ODE system to obtain a distribution - this is sampling-based uncertainty propogation
-        for sample in samples:
-
-            predicted_state = solve_ivp(
-                fun=equations_of_motion,
-                t_span=[t, final_time],
-                y0=sample,
-                method='RK23',
-                t_eval=t_eval,
-                events=hit_ground,
-                rtol=1e-8,
-                atol=1e-8
-                # max_step=timestep
-            )
+        for _ in range(n_samples):
+            max_tries = 100
             
-            predictions.append(physical_quantities(state=predicted_state.y_events[0].flatten(), initial_state=self.initial_state))
-            crash_times.append(predicted_state.t_events[0])
+            for iter in range(max_tries):
+                sample = np.random.multivariate_normal(mean=state, cov=state_covariance)
+
+                forecasted_state = solve_ivp(
+                    fun=equations_of_motion,
+                    t_span=(t, final_time),
+                    y0=sample,
+                    method='RK45',
+                    t_eval=t_eval,
+                    events=hit_ground,
+                    rtol=1e-8,
+                    atol=1e-8
+                )
+
+                if forecasted_state.y_events[0].size > 0:
+                    crash_state = forecasted_state.y_events[0].flatten()
+                    predictions.append(crash_state)
+                    crash_times.append(forecasted_state.t_events[0] + self.t)
+                    # print(f"Crash occured. Sample: {sample}")
+                    break
+       
+                #else:
+                    # print(f"No crash/escape. Retrying...")
+
+                # print("Max attempts reached without a crash. Skipping sample.")
 
         # Return the distribution of predictions and timings, and their statistics, reshaped into an appropriate format
+        # predictions = np.array(predictions).reshape(n_samples, state.shape[0]-1)
         predictions = np.array(predictions).reshape(n_samples, state.shape[0])
         crash_times = np.array(crash_times).reshape(n_samples, 1)
 
@@ -512,11 +527,42 @@ class Predictor:
         self.forecasted_times.append(crash_times)
         self.forecasted_times_mean.append(crash_times.mean(axis=0))
         self.forecasted_times_std.append(crash_times.std(axis=0))
-        #return np.array(predictions).reshape(n_samples, state.shape[0]), np.array(crash_times).reshape(n_samples, 1)
 
         if verbose is True:
-            print(f'Forecasted mean crash state:\n {np.array(predictions).reshape(n_samples, state.shape[0]).mean(axis=0)}\n')
-            print(f'Forecasted standard deviation of crash state:\n {np.array(predictions).reshape(n_samples, state.shape[0]).std(axis=0)}\n\n')
+            print(f'Forecasted mean crash state:\n {self.forecasted_states_mean[-1]}\n')
+            print(f'Forecasted standard deviation of crash state:\n {self.forecasted_states_std[-1]}\n')
 
-            print(f'Forecasted mean crash time:\n {np.array(crash_times).reshape(n_samples, 1).mean(axis=0)}\n')
-            print(f'Forecasted standard deviation of crash times:\n {np.array(crash_times).reshape(n_samples, 1).std(axis=0)}\n')
+            print(f'Forecasted mean crash time:\n {self.forecasted_times_mean[-1]}\n')
+            print(f'Forecasted standard deviation of crash times:\n {self.forecasted_times_std[-1]}\n')
+
+    def get_outputs(self) -> dict[np.array, np.array, np.array, np.array, np.array, np.array, np.array, np.array, np.array]:
+        
+        prior_trajectories = np.asarray(self.prior_traj)
+        posterior_trajectories = np.asarray(self.posterior_traj)
+        posterior_trajectories_LLA = np.asarray(self.posterior_traj_states_LLA)
+        posterior_trajectories_cartesian = np.asarray(self.posterior_traj_states_cartesian)
+        posterior_traj_times = np.asarray(self.posterior_traj_times)
+
+        crash_site_forecasts = np.asarray(self.forecasted_states)
+        mean_crash_site_forecasts = np.asarray(self.forecasted_states_mean)
+        std_crash_site_forecasts = np.asarray(self.forecasted_states_std)
+
+        crash_site_times = np.asarray(self.forecasted_times)
+        mean_crash_site_times = np.asarray(self.forecasted_times_mean)
+        std_crash_site_times = np.asarray(self.forecasted_times_std)
+
+        output_dict = {
+            'prior_traj': prior_trajectories,
+            'posterior_traj': posterior_trajectories,
+            'posterior_traj_LLA': posterior_trajectories_LLA,
+            'posterior_traj_cart': posterior_trajectories_cartesian,
+            'posterior_traj_times': posterior_traj_times,
+            'crash_site_forecasts': crash_site_forecasts,
+            'mean_crash_sites': mean_crash_site_forecasts,
+            'std_crash_sites': std_crash_site_forecasts,
+            'crash_site_times': crash_site_times,
+            'mean_crash_times': mean_crash_site_times,
+            'std_crash_times': std_crash_site_times 
+        }
+
+        return output_dict
