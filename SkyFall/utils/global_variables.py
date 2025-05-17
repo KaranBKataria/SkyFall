@@ -83,4 +83,4 @@ r = 1.77/2
 
 # Compute cross-sectional area of the ISEE-3 satellite
 # A = 2*np.pi*(r)*1.58
-A = np.pi * r**2 # front area of the satellite, check with peter to see if this is correct
+A = np.pi * r**2
