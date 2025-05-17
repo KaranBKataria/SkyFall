@@ -264,7 +264,7 @@ def measurement_model_h(state: np.array, radar_longitude: float) -> np.array:
         Inputs:
                 state: the prior state of the predictor at time t (x_bar)
                 radar_longitude: the longitude of the 'active radar' station at time t
-                                 which provided the measurement to the predictor
+                                 which provided the measurement to the predictor in radians
 
         Outputs:
                 h: the measurement model output h(state)
@@ -331,3 +331,42 @@ def physical_quantities(state: np.array, initial_state: np.array) -> np.array:
     physical_state = np.array([distance_travelled, altitude, v_x, v_y])
 
     return physical_state
+
+def ECI_to_ECEF(time: float, state: np.array) -> tuple[np.array, np.array, np.array]:
+    """
+    This function converts posterior and forecasted states from ECI to ECEF - which
+    is essential for visualisation.
+
+        Inputs:
+                time: current time of the state
+                state: forecasted or posterior state at time
+
+        Outputs:
+                state_ECEF: the state in polar coordinates in ECEF frame
+                state_ECEF_cartesian: the state in cartesian coordinates in ECEF frame
+                LLA: the latitude, longitude and altitude of state
+    """
+
+    state = np.asarray(state)
+
+    # Extract state components
+    r, theta, r_dot, th_dot = state
+
+    # Convert from ECI to ECEF
+    theta_ECEF = theta - omega_E * time
+    th_dot_ECEF = th_dot - omega_E
+
+    state_ECEF = np.array([r, theta_ECEF, r_dot, th_dot_ECEF])
+
+    # Convert into Cartesian coordinates
+    state_ECEF_cartesian = polar_to_cartesian_state(state=state_ECEF)
+
+    # Obtain latitude, longitude and altitude
+    lat = 0.0   # Always 0 due to equitorial orbit
+    lon = np.arctan2(state_ECEF_cartesian[1], state_ECEF_cartesian[0])
+    altitude = r - R_e
+
+    LLA_radians = np.array([lat, lon % (2 * np.pi), altitude])
+    LLA_deg = np.array([np.degrees(lat), np.degrees(lon), altitude])
+
+    return state_ECEF, state_ECEF_cartesian, LLA_radians, LLA_deg
