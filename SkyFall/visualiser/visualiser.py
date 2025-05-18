@@ -640,33 +640,3 @@ class Visualiser:
         fig.subplots_adjust(left=0.1, right=0.95, bottom=0.15, top=0.95, hspace=0.3, wspace=0.2)
 
         plt.show()
-
-if __name__ == "__main__":
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    predictor_forecasts_path = os.path.join(current_dir, "test_data/predictor_forecasts.npz")
-    predictor_posterior_trajectory_path = os.path.join(current_dir, "test_data/predictor_posterior_trajectory.npz")
-
-    predictor_forecasts = np.load(predictor_forecasts_path)
-    predictor_posterior_trajectory = np.load(predictor_posterior_trajectory_path)
-    print(predictor_posterior_trajectory)
-
-    xs = predictor_posterior_trajectory['xs'][:25]
-    ys = predictor_posterior_trajectory['ys'][:25]
-    vxs = predictor_posterior_trajectory['vx'][:25]
-    vys = predictor_posterior_trajectory['vy'][:25]
-
-    forecast_states = predictor_forecasts['states']
-    forecast_states_repeated = np.repeat(forecast_states, repeats=5, axis=0)
-    n_steps = forecast_states_repeated.shape[0]
-    interval_seconds = 5
-    times = np.arange(0, n_steps * interval_seconds, interval_seconds)
-
-    crash_x_list = [forecast_states_repeated[i, :, 0] for i in range(n_steps)]
-
-    vis = Visualiser(times, xs, ys, vxs, vys, crash_x_list)
-    # vis.plot_orbit()
-    # vis.save_plot('orbit_decay.png')
-    # vis.animate_orbit(interval=50)
-
-    vis.plot_orbit_map(path_color='blue', cmap='magma')
-    vis.animate_orbit(current_point_color='yellow', interval=100)
