@@ -60,11 +60,11 @@ from SkyFall.utils import predictor_utilities
 # Import all global constant variables (e.g. Mass of the Earth)
 from SkyFall.utils.global_variables import *
 
-# Import in the simulator
+# Import the simulator
 from SkyFall.simulator.simulator import Simulator
 
-# Import in the predictor
-from SkyFall.predictor import Predictor
+# Import the predictor and the wrapper function
+from SkyFall.predictor import Predictor, run_predictor
 ```
 
 >[!NOTE]
