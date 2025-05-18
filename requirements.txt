@@ -54,5 +54,4 @@ traitlets==5.14.3
 tzdata==2025.2
 ussa1976==0.3.4
 wcwidth==0.2.13
-wheel @ file:///opt/homebrew/Cellar/python%403.13/3.13.2/libexec/wheel-0.45.1-py3-none-any.whl#sha256=b9235939e2096903717cb6bfc132267f8a7e46deb2ec3ef9c5e234ea301795d0
 xarray==2025.4.0
