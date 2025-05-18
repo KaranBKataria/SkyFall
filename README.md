@@ -127,7 +127,7 @@ To give the user the flexibility to conduct further analysis, outputs such as th
 
 ### Predictor
 
-Having obtained the radar measurements, the user can instantiate an object of the `Predictor` class to estimate the position of the satellite at each specified time step and obtain a distribution of impact site and time forecasts via Monte Carlo sampling. The predictor is based on the Extended Kalman Filter (EKF) algorithm; please see the documentation for further mathematical insight.
+Having obtained the radar measurements, the user can instantiate an object of the `Predictor` class to estimate the position of the satellite at each specified time step and obtain a distribution of impact site and time forecasts via Monte Carlo sampling. The predictor is based on the [Extended Kalman Filter (EKF)](https://www.researchgate.net/publication/2888846_Kalman_and_Extended_Kalman_Filters_Concept_Derivation_and_Properties) algorithm; please see the documentation for further mathematical insight.
 
 ```python
 # Create an instance of the predictor
