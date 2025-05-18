@@ -9,7 +9,7 @@ Group: ISEE-3
 
 ## THIS IS A WORKING FILE - PERFECT BEFORE FOR THE FINAL SUBMISSON
 
-from SkyFall.predictor import Predictor
+from SkyFall.predictor import Predictor, run_predictor
 from SkyFall.simulator.simulator import Simulator
 from SkyFall.visualiser.visualiser import Visualiser
 from SkyFall.utils.global_variables import *
@@ -26,13 +26,10 @@ def main():
     # Define user-specified parameters
     
     # Number of forecast samples 
-    n_samples: int = 1
+    n_samples: int = 5
 
     # Number of measurements between forecasts made
-    nth_measurement: int = 10
-
-    # Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians)
-    predictor_termination: float = 0.0007377
+    nth_measurement: int = 5
 
     # Define the covariance matrices (NB: no covariances have been included, but this can optionally be added)
 
@@ -43,25 +40,22 @@ def main():
     # Measurement covariance matrix (2x2)
     # R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[10**2, (0.0005)**2], covariances=None)
     # R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1e8, 1e4], covariances=[1e2])
-    R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[200**2, 4], covariances=None)
-
+    R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1000**2, 4], covariances=None)
 
     # # Process covariance matrix (4x4)
     # Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[10, 1e-4, 1, 1e-8], covariances=[0,2,0,0,1e-6,0])
-    Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[25, 0.0001**2, 0.1**2, 1e-12], covariances=None)
+    Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[20**2, 0.0001**2, 0.2**2, 1e-14], covariances=None)
 
     # Initialise the initial conditions and timestep
 
     # NB: The state is in polar coordinates of the form r, theta, r_dot and th_dot
     # Compute alitutude (m) and hence distance from Earth's centre
-    h: float = 200e3
+    h: float = 150e3
     r: float = R_e + h
 
     v_c = np.sqrt(G*M_e / r)
-    print(v_c)
 
     # Compute initial angular velocity (> 0 for prograde motion; mimicing realistic satellite orbits)
-    # th_dot0: float = ((np.sqrt(G*M_e / r) - 30)  / r)
     th_dot0 = (v_c - 30)/r
 
     # Initial state must be an array of shape 4x1
@@ -105,7 +99,7 @@ def main():
         pred.eval_JacobianF(
             G=G, M_e=M_e, Cd=C_d,
             A=A, m=m_s, R_air=R_air,
-            g0=g0, omega_E=omega_E, R_e=R_e, verbose=True)
+            g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=True)
 
         pred.update_prior_belief(verbose=False)
 
@@ -138,17 +132,14 @@ def main():
 
                 outputs = pred.get_outputs()
                 posterior_trajectories_LLA = outputs['posterior_traj_LLA']
-                print(f'Shape: {posterior_trajectories_LLA.shape}')
-                print(f'LLA Trajectories: {posterior_trajectories_LLA}')
-
                 prior_traj = outputs['prior_traj']
                 posterior_traj = outputs['posterior_traj']
                 traj_times = outputs['posterior_traj_times']
-
                 posterior_trajectories_cartesian = outputs['posterior_traj_cart']
 
-                forecasted_crash_LLA = outputs['crash_site_forecasts']
-                mean_forecasted_crash_LLA = outputs['mean_crash_sites']
+                forecasted_crash_LLA = outputs['crash_site_forecasts_LLA_degree']
+                print(f'Shape of forecasted_crash_LLA: {forecasted_crash_LLA.shape}')
+                mean_forecasted_crash_LLA = outputs['mean_crash_site_forecasts_LLA_degree']
                 mean_forecasted_crash_time = outputs['mean_crash_times']
 
                 # print(f'Final mean forecasted crash site:\n Latitude: 0 deg, Longitude: {mean_forecasted_crash_LLA[-1][]}\n')
@@ -165,15 +156,15 @@ def main():
                     crash_lon_list=forecasted_crash_LLA
                 )
 
-                # vis.plot_orbit()
+                vis.plot_orbit()
 
-                # vis.animate_orbit()
+                vis.animate_orbit()
 
                 vis.plot_crash_distribution()
 
-                vis.plot_height_vs_time()
+                # vis.plot_height_vs_time()
 
-                vis.plot_orbit_map()
+                # vis.plot_orbit_map()
 
                 break
 
@@ -183,7 +174,7 @@ def main():
 
     plt.figure()
     plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='EKF state')
-    plt.plot(traj_times, (prior_traj[:,0] - R_e)/1000, linestyle='--', label='Prior EKF state')
+    plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='EKF state')
     plt.plot(times, (real_traj[:,0]-R_e)/1000, marker='x', label='Real measurement data')
     # plt.xlim(0, 1000)
     # plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
