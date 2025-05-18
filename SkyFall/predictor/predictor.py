@@ -76,6 +76,10 @@ class Predictor:
         self.forecasted_states_mean = []
         self.forecasted_states_std = []
 
+        self.forecasted_states_LLA_deg = []
+        self.forecasted_states_LLA_deg_mean = []
+        self.forecasted_states_LLA_deg_std = []
+
         self.forecasted_times = []
         self.forecasted_times_mean = []
         self.forecasted_times_std = []
@@ -491,6 +495,7 @@ class Predictor:
 
         # Define lists to be populated with sample crash predictions and timings
         predictions = []
+        predictions_LLA_deg = []
         crash_times = []
 
         # if samples.size == 0:
@@ -519,16 +524,22 @@ class Predictor:
                 if forecasted_state.y_events[0].size > 0:
                     crash_state = forecasted_state.y_events[0].flatten()
                     predictions.append(crash_state)
+                    predictions_LLA_deg.append(ECI_to_ECEF(time=self.t, state=crash_state)[-1])
                     crash_times.append(forecasted_state.t_events[0] + self.t)
                     break
 
         # Return the distribution of predictions and timings, and their statistics, reshaped into an appropriate format
         predictions = np.array(predictions).reshape(n_samples, state.shape[0])
+        predictions_LLA_deg = np.array(predictions_LLA_deg).reshape(n_samples, state.shape[0]-1)
         crash_times = np.array(crash_times).reshape(n_samples, 1)
 
         self.forecasted_states.append(predictions)
         self.forecasted_states_mean.append(predictions.mean(axis=0))
         self.forecasted_states_std.append(predictions.std(axis=0))
+
+        self.forecasted_states_LLA_deg.append(predictions_LLA_deg)
+        self.forecasted_states_LLA_deg_mean.append(predictions_LLA_deg.mean(axis=0))
+        self.forecasted_states_LLA_deg_std.append(predictions_LLA_deg.std(axis=0))
 
         self.forecasted_times.append(crash_times)
         self.forecasted_times_mean.append(crash_times.mean(axis=0))
@@ -560,10 +571,15 @@ class Predictor:
         posterior_trajectories_cartesian = np.asarray(self.posterior_traj_states_cartesian)
         posterior_traj_times = np.asarray(self.posterior_traj_times)
 
-        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step
+        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step in ECF frame
         crash_site_forecasts = np.asarray(self.forecasted_states)
         mean_crash_site_forecasts = np.asarray(self.forecasted_states_mean)
         std_crash_site_forecasts = np.asarray(self.forecasted_states_std)
+
+        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step in ECF frame
+        crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg)
+        mean_crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg_mean)
+        std_crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg_std)
 
         # Obtain crash time forecast information, such as distributions, averages and standard deviations per MC step
         crash_site_times = np.asarray(self.forecasted_times)
@@ -576,9 +592,15 @@ class Predictor:
             'posterior_traj_LLA': posterior_trajectories_LLA,
             'posterior_traj_cart': posterior_trajectories_cartesian,
             'posterior_traj_times': posterior_traj_times,
+
             'crash_site_forecasts': crash_site_forecasts,
             'mean_crash_sites': mean_crash_site_forecasts,
             'std_crash_sites': std_crash_site_forecasts,
+
+            'crash_site_forecasts_LLA_degree': crash_site_forecasts_LLA_deg,
+            'mean_crash_site_forecasts_LLA_degree': mean_crash_site_forecasts_LLA_deg,
+            'std_crash_site_forecasts_LLA_degree': std_crash_site_forecasts_LLA_deg,
+
             'crash_site_times': crash_site_times,
             'mean_crash_times': mean_crash_site_times,
             'std_crash_times': std_crash_site_times 
