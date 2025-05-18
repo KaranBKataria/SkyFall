@@ -139,7 +139,7 @@ predictor_termination: float = 0.0007377
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
-Having instantiated a predictor object, it is paramount that the predictor module follows a specific flow for the EKF algorithm to work successfully. To provide users with the flexibility to call individual steps of the algorithm, a pre-defined wrapper function has not been defined by default to run the predictor. This style is synonymous with other popular packages, such as [PyTorch](https://pytorch.org/). If desired, the user can create a wrapper function themselves. 
+Having instantiated a predictor object, it is paramount that the predictor module follows a specific flow for the EKF algorithm to work successfully. To provide users with flexibility,  call individual steps of the algorithm, modify the flow as desired and change specific arguments, the user has the ability to create their own . This style is synonymous with other popular packages, such as [PyTorch](https://pytorch.org/). If desired, the user can create a wrapper function themselves. 
 
 To ensure full transparency in the required workflow of the predictor, the following flowchart is provided.
 
