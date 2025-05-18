@@ -311,7 +311,7 @@ class Predictor:
         if verbose is True:
             print(f'Current prior state covariance matrix:\n {self.prior_state_covariance}\n')
 
-    def residual(self, measurement: np.array, theta_R: float, measurement_model=measurement_model, verbose: bool = True):
+    def residual(self, measurement: np.array, theta_R: float, verbose: bool = True):
         """
         This function computes the residual of the true measurement data and the predicted
         measurement data, computed from the measurement model and the prior state estimate 
@@ -327,7 +327,7 @@ class Predictor:
                     res: the residual value, y
         """
         
-        residual = np.array(measurement - measurement_model(self, theta_R=theta_R))
+        residual = np.array(measurement - self.measurement_model(theta_R=theta_R))
 
         # If there is a single value (i.e. size-1 array), reshape it for compatibility with later linear algebra
         if residual.size == 1:
