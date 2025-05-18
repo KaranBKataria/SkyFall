@@ -11,8 +11,6 @@ Group: ISEE-3
 # file. Ask Karan for more info. if needed
 from SkyFall.utils import *
 
-# import csv
-
 class Predictor:
 
     """
@@ -82,7 +80,7 @@ class Predictor:
         self.forecasted_times_mean = []
         self.forecasted_times_std = []
 
-    def process_model(self, include_noise=True, verbose: bool = True):# -> np.array:
+    def process_model(self, include_noise=True, verbose: bool = True):
         """
         This function outputs a prior state estimate (by default with no additive Gaussian noise) under the
         non-linear process model given by the equations of motion at the next time step.
@@ -101,7 +99,6 @@ class Predictor:
         """
 
         state = np.asarray(self.posterior_state)
-        # theta_start = state[1]
 
         # Determine the cardinality of the state vector and ensure process covariance matrix is an array
         xdim = state.size
@@ -119,7 +116,7 @@ class Predictor:
             fun=equations_of_motion,
             t_span=(t, t + timestep),
             y0=state,
-            method='RK23',
+            method='RK45',
             t_eval=t_eval,
             events=hit_ground,
             rtol=1e-8,
@@ -128,8 +125,6 @@ class Predictor:
 
         # Update global time variable
         self.t += timestep
-
-        # np.asarray(predicted_state.y)[:,-1][1] = np.asarray(predicted_state.y)[:,-1][1] + theta_start
 
         # If noise is to be included, perturb the state with additive Gaussian noise - else return just the predicted state
         if include_noise is True:
@@ -169,7 +164,7 @@ class Predictor:
 
         return h
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e, verbose=False) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -241,6 +236,9 @@ class Predictor:
                     g0=g0, T_b=T_b, h_b=h_b, R_e=R_e, omega_E=omega_E)
 
                 self.JacobianF = F
+            
+        if verbose is True:
+            print(f'The Jacobian F: {self.JacobianF}')
 
     def eval_JacobianH(self, theta_R: float, R_e=R_e, omega_E=omega_E) -> np.array:
         """
@@ -267,7 +265,7 @@ class Predictor:
         self.JacobianH = H
 
     def update_prior_belief(
-        self, JacobianV=None, control_covariance=None, verbose: bool = True):# -> np.array:
+        self, JacobianV=None, control_covariance=None, verbose: bool = True):
         """
         This function updates the state covariance matrix P for the next iteration in the
         EKF. Note, this is the state covariance matrix BEFORE data assimilation - i.e. it is
@@ -313,7 +311,7 @@ class Predictor:
         if verbose is True:
             print(f'Current prior state covariance matrix:\n {self.prior_state_covariance}\n')
 
-    def residual(self, measurement: np.array, theta_R: float, measurement_model=measurement_model, verbose: bool = True):# -> np.array:
+    def residual(self, measurement: np.array, theta_R: float, measurement_model=measurement_model, verbose: bool = True):
         """
         This function computes the residual of the true measurement data and the predicted
         measurement data, computed from the measurement model and the prior state estimate 
@@ -340,7 +338,7 @@ class Predictor:
         if verbose is True:
             print(f'Residual value:\n {self.res}\n')
 
-    def kalman_gain(self, verbose: bool = True) -> np.array:
+    def kalman_gain(self, verbose: bool = True):
         """
         This function computes the Kalman gain matrix.
 
@@ -383,7 +381,7 @@ class Predictor:
         if verbose is True:
             print(f'Current Kalman gain:\n {self.kalman_gain_matrix}\n')
 
-    def assimilated_posterior_prediction(self, verbose: bool = True):# -> np.array, np.array:
+    def assimilated_posterior_prediction(self, verbose: bool = True):
         """
         This function computes the data assimilated state prediction and updated process
         covariance matrix P.
@@ -441,7 +439,7 @@ class Predictor:
         self.posterior_traj_states_cartesian.append(ECI_to_ECEF(time=self.t, state=x_state_assimilated)[-3])
         self.posterior_traj_times.append(self.t)
 
-    def forecast(self, n_samples: int, final_time=4e9, verbose: bool = True):#-> (np.array, np.array):
+    def forecast(self, n_samples: int, final_time=4e9, verbose: bool = True):
         """
         This function, at each given time step after the data has been assimilated, forecasts the crash site and timing.
         Sampling-based (a.k.a Monte Carlo) uncertainty propogation has been used to obtain a distribution of the crash
@@ -477,9 +475,6 @@ class Predictor:
         predictions = []
         crash_times = []
 
-        # Draw samples from the state distribution, centered on the state with a state covariance matrix
-        # samples = np.random.multivariate_normal(mean=state, cov=state_covariance, size=n_samples)
-
         # if samples.size == 0:
         #     raise AssertionError("No samples drawn from Gaussian distribution; invalid covariance matrix")
 
@@ -507,16 +502,9 @@ class Predictor:
                     crash_state = forecasted_state.y_events[0].flatten()
                     predictions.append(crash_state)
                     crash_times.append(forecasted_state.t_events[0] + self.t)
-                    # print(f"Crash occured. Sample: {sample}")
                     break
-       
-                #else:
-                    # print(f"No crash/escape. Retrying...")
-
-                # print("Max attempts reached without a crash. Skipping sample.")
 
         # Return the distribution of predictions and timings, and their statistics, reshaped into an appropriate format
-        # predictions = np.array(predictions).reshape(n_samples, state.shape[0]-1)
         predictions = np.array(predictions).reshape(n_samples, state.shape[0])
         crash_times = np.array(crash_times).reshape(n_samples, 1)
 
@@ -535,18 +523,31 @@ class Predictor:
             print(f'Forecasted mean crash time:\n {self.forecasted_times_mean[-1]}\n')
             print(f'Forecasted standard deviation of crash times:\n {self.forecasted_times_std[-1]}\n')
 
-    def get_outputs(self) -> dict[np.array, np.array, np.array, np.array, np.array, np.array, np.array, np.array, np.array]:
+    def get_outputs(self) -> dict[np.array]:
+        """
+        This function outputs results from the predictor once it has terminated.
+
+            Inputs:
+                    self
+            
+            Outputs:
+                    output: a dictionary of numpy arrays containing various outputs
+                            accumulated in the lifespan of the predictor
+        """
         
+        # Obtain trajectories and times
         prior_trajectories = np.asarray(self.prior_traj)
         posterior_trajectories = np.asarray(self.posterior_traj)
         posterior_trajectories_LLA = np.asarray(self.posterior_traj_states_LLA)
         posterior_trajectories_cartesian = np.asarray(self.posterior_traj_states_cartesian)
         posterior_traj_times = np.asarray(self.posterior_traj_times)
 
+        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step
         crash_site_forecasts = np.asarray(self.forecasted_states)
         mean_crash_site_forecasts = np.asarray(self.forecasted_states_mean)
         std_crash_site_forecasts = np.asarray(self.forecasted_states_std)
 
+        # Obtain crash time forecast information, such as distributions, averages and standard deviations per MC step
         crash_site_times = np.asarray(self.forecasted_times)
         mean_crash_site_times = np.asarray(self.forecasted_times_mean)
         std_crash_site_times = np.asarray(self.forecasted_times_std)
