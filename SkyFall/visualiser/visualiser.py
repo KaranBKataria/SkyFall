@@ -36,11 +36,22 @@ class Visualiser:
         self.lon = trajectory_LLA[:,1]
         self.altitude = trajectory_LLA[:,-1]
 
-        # Adjust crash_lon_list length to match times
-        crash_lon_list = self._adjust_crash_lon_list(crash_lon_list, len(times))
-        n_steps = crash_lon_list.shape[0]
-        self.crash_lon_list = [crash_lon_list[i, :, 0] for i in range(n_steps)]
 
+        # n_steps_temp = crash_lon_list.shape[0]
+        # crash_lon_list_temp = [crash_lon_list[i, :, 1] for i in range(n_steps_temp)]
+        # self.crash_lons_list_dis = [np.array(crash_xs) / self.R_earth * 180 / np.pi for crash_xs in crash_lon_list_temp]
+        self.crash_lons_list_dis = crash_lon_list
+
+        # print("crash_lon_list shape:")
+        # print(crash_lon_list.shape)
+        # print(crash_lon_list)
+
+        # Adjust crash_lon_list length to match times
+        crash_lon_list_ani = self._adjust_crash_lon_list(crash_lon_list, len(times))
+        n_steps = crash_lon_list_ani.shape[0]
+        self.crash_lon_list_ani = [crash_lon_list_ani[i, :, 1] for i in range(n_steps)]
+
+        
 
         # Debug: Check data lengths and values
         if len(self.times) != len(self.xs) or len(self.xs) != len(self.ys):
@@ -100,8 +111,8 @@ class Visualiser:
             print("Warning: No valid heights (ys > 0) found. Check input data.")
         # Convert crash_x_list to longitudes if provided
         crash_lons_list = None
-        if self.crash_x_list is not None:
-            crash_lons_list = [np.array(crash_xs) / self.R_earth * 180 / np.pi for crash_xs in self.crash_x_list]
+        if self.crash_lon_list_ani is not None:
+            crash_lons_list = [np.array(crash_xs) / self.R_earth * 180 / np.pi for crash_xs in self.crash_lon_list_ani]
             for i, crash_lons in enumerate(crash_lons_list):
                 if np.any(np.isnan(crash_lons)) or np.any(np.isinf(crash_lons)):
                     print(f"Warning: NaN or Inf values found in crash_x_list[{i}].")
@@ -223,22 +234,26 @@ class Visualiser:
         - show_grid: bool, whether to show grid (default: True)
         """
         # Convert coordinates
-        # lons, lats, heights, times, crash_lons_list = self._convert_to_lonlat()
+        # _, _, _, _, crash_lons_list = self._convert_to_lonlat()
 
-        crash_lons_list = self.crash_lon_list
+        crash_lons_list = self.crash_lons_list_dis
         lons = self.lon 
         lats = self.lat
         heights = self.altitude
         times = self.times
 
+        # print(times)
+        # times = [times[i] for i in range(4, len(times), 5)]
+        # print(times)
+
         forecasts = [crash_lons_list[id, :, 1] for id in range(0, crash_lons_list.shape[0])]
-        labels = [str(id) for id in range(1, crash_lons_list.shape[0]+1)]
+        labels = [str(i) for i in range(1, len(crash_lons_list) + 1)]
 
         # Create figure
         fig, ax_crash = plt.subplots(figsize=figsize)
 
         # Crash X Distribution
-        if crash_lons_list is not None:
+        if forecasts is not None:
             # ax_crash.boxplot(crash_lons_list, positions=times, #widths=(times[1] - times[0])/2 if len(times) > 1 else 1,
             #                  patch_artist=True, boxprops=dict(facecolor=box_color, color=box_color))
 
@@ -286,14 +301,14 @@ class Visualiser:
         """
         # Convert coordinates
         # lons, lats, heights, times, crash_lons_list = self._convert_to_lonlat()
-        crash_lons_list = self.crash_lon_list
+        crash_lons_list = self.crash_lons_list_dis
         lons = self.lon 
         lats = self.lat
         heights = self.altitude
         times = self.times
 
         forecasts = [crash_lons_list[id, :, 1] for id in range(0, crash_lons_list.shape[0])]
-        labels = [str(id) for id in range(1, crash_lons_list.shape[0]+1)]
+        labels = [str(i) for i in range(1, len(crash_lons_list) + 1)]
 
         # Create figure with 2x2 grid
         fig = plt.figure(figsize=figsize)
@@ -338,7 +353,7 @@ class Visualiser:
         ax_height.tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
         # Crash X Distribution
-        if crash_lons_list is not None:
+        if forecasts is not None:
             ax_crash.boxplot(forecasts, labels=labels, patch_artist=True, boxprops=dict(facecolor=box_color, color=box_color))
 
         ax_crash.set_xlabel('Forecast index', fontsize=label_fontsize)
@@ -453,9 +468,9 @@ class Visualiser:
                      tick_fontsize=10, map_title='Satellite Orbital Decay Animation',
                      height_title='Altitude against time', crash_title='Predicted crash site distribution',
                      path_color='red', current_point_color='red', height_line_color='blue',
-                     crash_point_color='black', crash_scatter_color='blue', marker_size=8,
+                     crash_point_color='black', crash_box_color='blue', marker_size=8,
                      scatter_size=50, cmap='viridis', show_grid=True, show_legend=True,
-                     button_pos_play_pause=[0.35, 0.05, 0.1, 0.05], button_pos_reset=[0.5, 0.05, 0.1, 0.05]):
+                     button_pos_replay=[0.45, 0.05, 0.1, 0.05]):
         """
         Animate the satellite orbit, height vs time, and crash x distribution in a 2x2 grid
         with play/pause and reset buttons.
@@ -473,7 +488,7 @@ class Visualiser:
         - current_point_color: str, color of current position marker (default: 'red')
         - height_line_color: str, color of the height line (default: 'blue')
         - crash_point_color: str, color of crash points on map (default: 'black')
-        - crash_scatter_color: str, color of crash scatter points (default: 'blue')
+        - crash_box_color: str, color of crash scatter points (default: 'blue')
         - marker_size: int, size of markers (default: 8)
         - scatter_size: int, size of scatter points (default: 50)
         - cmap: str, colormap for height scatter (default: 'viridis')
@@ -483,9 +498,9 @@ class Visualiser:
         - button_pos_reset: list, position of reset button [x, y, width, height] (default: [0.5, 0.05, 0.1, 0.05])
         """
         # Convert coordinates
-        # lons, lats, heights, times, crash_lons_list = self._convert_to_lonlat()
+        # _, _, _, _, crash_lons_list = self._convert_to_lonlat()
 
-        crash_lons_list = self.crash_lon_list
+        crash_lons_list = self.crash_lon_list_ani
         lons = self.lon 
         lats = self.lat
         heights = self.altitude
@@ -546,7 +561,7 @@ class Visualiser:
             crash_lons_flat = np.concatenate(crash_lons_list)
             ax_crash.set_ylim(min(crash_lons_flat) * 0.9, max(crash_lons_flat) * 1.1)
         ax_crash.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-        crash_scatter = None
+        crash_box = None
 
         # Animation state
         is_running = [True]  # Track if animation is running
@@ -569,7 +584,7 @@ class Visualiser:
                                  max(times) + 0.1 * (max(times) - min(times)))
                 ax_crash.set_ylim(min(crash_lons_flat) * 0.9, max(crash_lons_flat) * 1.1)
                 ax_crash.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-            return [line, point, sc, crash_point, height_line] + ([crash_scatter] if crash_scatter is not None else [])
+            return [line, point, sc, crash_point, height_line] + ([crash_box] if crash_box is not None else [])
 
         def update(frame):
             # Update map
@@ -595,46 +610,32 @@ class Visualiser:
                                  max(times) + 0.1 * (max(times) - min(times)))
                 ax_crash.set_ylim(min(crash_lons_flat) * 0.9, max(crash_lons_flat) * 1.1)
                 ax_crash.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-                nonlocal crash_scatter
-                crash_scatter = ax_crash.scatter([times[frame]] * len(crash_lons_list[frame]), 
-                                                crash_lons_list[frame], c=crash_scatter_color, 
-                                                marker='x', s=scatter_size, alpha=0.5)
-            return [line, point, sc, crash_point, height_line] + ([crash_scatter] if crash_scatter is not None else [])
+                nonlocal crash_box
+                crash_box = ax_crash.boxplot(crash_lons_list[frame], positions=[times[frame]], 
+                                             widths=(times[1] - times[0])/2 if len(times) > 1 else 1,
+                                             patch_artist=True, 
+                                             boxprops=dict(facecolor=crash_box_color, color=crash_box_color),
+                                             medianprops=dict(color='black'))
+            return [line, point, sc, crash_point, height_line] + ([crash_box] if crash_box is not None else [])
 
         # Create animation
         ani = FuncAnimation(fig, update, init_func=init, frames=len(lons), interval=interval, 
                             blit=False, repeat=False)
 
-        # Add buttons
-        # ax_play_pause = plt.axes(button_pos_play_pause)
-        # ax_reset = plt.axes(button_pos_reset)
-        # btn_play_pause = Button(ax_play_pause, 'Pause')
-        # btn_reset = Button(ax_reset, 'Reset')
+        # add Replay Button
+        ax_replay = plt.axes(button_pos_replay)
+        btn_replay = Button(ax_replay, 'Replay Animation')
 
-        # def toggle_play_pause(event):
-        #     if is_running[0]:
-        #         ani.event_source.stop()
-        #         is_running[0] = False
-        #         btn_play_pause.label.set_text('Play')
-        #     else:
-        #         ani.event_source.start()
-        #         is_running[0] = True
-        #         btn_play_pause.label.set_text('Pause')
-        #     fig.canvas.draw()
+        def replay(event):
+            nonlocal ani
+            if ani.event_source is not None:
+                ani.event_source.stop()
+            ani = FuncAnimation(fig, update, init_func=init, frames=len(lons), interval=interval, 
+                                blit=False, repeat=False)
+            ani.event_source.start()
+            fig.canvas.draw()
 
-        # def reset(event):
-        #     ani.frame_seq = ani.new_frame_seq()
-        #     if ani.event_source is not None:
-        #         ani.event_source.stop()
-        #     ani._iter_gen = iter(range(len(lons)))
-        #     is_running[0] = False
-        #     btn_play_pause.label.set_text('Play')
-        #     init()
-        #     ani._draw_frame(0)
-        #     fig.canvas.draw()
-
-        # btn_play_pause.on_clicked(toggle_play_pause)
-        # btn_reset.on_clicked(reset)
+        btn_replay.on_clicked(replay)
 
         # Adjust layout manually
         fig.subplots_adjust(left=0.1, right=0.95, bottom=0.15, top=0.95, hspace=0.3, wspace=0.2)
