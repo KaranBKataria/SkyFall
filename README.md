@@ -132,20 +132,24 @@ To give the user the flexibility to conduct further analysis, outputs such as th
 Having obtained the radar measurements, the user can instantiate an object of the `Predictor` class to estimate the position of the satellite at each specified time step and obtain a distribution of impact site and time forecasts via Monte Carlo sampling. The predictor is based on the [Extended Kalman Filter (EKF)](https://www.researchgate.net/publication/2888846_Kalman_and_Extended_Kalman_Filters_Concept_Derivation_and_Properties) algorithm; please see the documentation for further mathematical insight.
 
 ```python
-# Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians - based on Tranquility Base)
+# Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians - based on Tranquillity Base)
 predictor_termination: float = 0.0007377
 
 # Create an instance of the Predictor class
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
-Having instantiated a predictor object, it is paramount that the predictor module follows a specific flow for the EKF algorithm to work successfully. To provide users with flexibility,  call individual steps of the algorithm, modify the flow as desired and change specific arguments, the user has the ability to create their own . This style is synonymous with other popular packages, such as [PyTorch](https://pytorch.org/). If desired, the user can create a wrapper function themselves. 
+Having instantiated a predictor object, it is paramount that the predictor module follows a specific flow for the EKF algorithm to work successfully. To provide users with flexibility, the individual steps of the algorithm can be called. This style is synonymous with other popular packages, such as [PyTorch](https://pytorch.org/). For a more user-friendly approach, the user also has the option to call a wrapper function, which automates the required flow as follows:
+
+```python
+outputs = run_predictor(predictor=predictor, radar_measurements=noisy_measurements, active_radar_longitudes=active_radar_longitudes, num_samples_MC=n_samples, forecast_gap=nth_measurement, verbose=True) 
+```
 
 To ensure full transparency in the required workflow of the predictor, the following flowchart is provided.
 
 ![predictor-flowchart.png](https://i.postimg.cc/SRgPm61F/Screenshot-2025-05-18-at-13-00-45.png)
 
-An ideal set-up for this is shown in the example script, `main.py`, which shows how the user **needs to** set up the problem. Once the predictor termination criteria is met (see documentation for more details), the user can call the following method to obtain outputs from the predictor:
+An ideal set-up using the manual approach for this is shown in the example script, `main.py`, which shows how the user **needs to** set up the problem. Once the predictor termination criteria are met (see documentation for more details), the user can call the following method to obtain outputs from the predictor or alternatively, obtain them as outputs from the wrapper function.
 
 ```python
 outputs = predictor.get_outputs()
