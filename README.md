@@ -76,7 +76,7 @@ SkyFall takes a modular, class-based approach to simulating the de-orbit dynamic
 
 Below is a step-by-step guide on how to initialise, call and use the modules once imported as shown in the **Getting started** section.
 
-### Preliminaries: user-specified arguements
+### Preliminaries: user-specified arguments
 
 The three modules share many common user-specified inputs. Therefore, it is required for the user to define such shared parameters before instantiating objects of the modules. Below are the common variables required, as well as functionality to create them (please see the documentation markdown file for the mathematical insight and more details on functions and their associated arguments):
 
@@ -106,17 +106,34 @@ del_t: float = ...
 
 # Initial time (seconds)
 t0: float = ...
-
 ```
 
 >[!NOTE]
-> The initial state must be defined in the following order: radial distance from the centre of the Earth to the satellite, the initial longitude of the satellite, the radial velocity and the angular velocity. This ordering extends to defining the variances and covariances of the process and state covariance matrices. All units are in metres, radians and seconds.
+> The initial state must be defined in the following order: radial distance from the centre of the Earth to the satellite, initial longitude of the satellite, radial velocity and angular velocity. This ordering extends to defining the variances and covariances of the process and state covariance matrices. All units are in metres, radians and seconds.
+>
 ### Simulator
 
-To use the simulator, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
+To obtain radar measurements, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
 
 ```python
 simulator = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
+
+times, real_measurements, noisy_measurements, active_radar_indices, active_radar_longitudes, crash_site, crash_time, full_trajectory = simulator.get_measurements()
+```
+
+The primary outputs of interest to pass into the predictor include `noisy_measurements` and `active_radar_longitudes`, which are the noisy radar station measurements (radial distance and velocity of the satellite from the radar station) as well as the longitude of the radar station which captured the measurement.
+
+To give the user the flexibility to conduct further analysis, outputs such as the impact site and times, full trajectory, as well as the times are made available. It is key to recall that the simulator emulates radar measurements; having access to the dynamics solved by the simulator enables the user to gain insight into the satellite's true motion. 
+
+### Predictor
+
+Having obtained the radar measurements, the user can instantiate an object of the `Predictor` class to estimate the position of the satellite at each specified time step and obtain a distribution of impact site and time forecasts via Monte Carlo sampling. The predictor is based on the Extended Kalman Filter (EKF) algorithm; please see the documentation for further mathematical insight.
+
+```python
+# Create an instance of the predictor
+predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
+
+times, real_measurements, noisy_measurements, active_radar_indices, active_radar_longitudes, crash_site, crash_time, full_trajectory = simulator.get_measurements()
 ```
 
 ## Example script
