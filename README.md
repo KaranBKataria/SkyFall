@@ -89,16 +89,16 @@ nth_measurement: int = ...
 
 # Define the covariance matrices
 
-# State covariance matrix (shape 4x4)
+# State covariance matrix - shape (4,4)
 P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
 
-# Measurement covariance matrix (shape 2x2)
+# Measurement covariance matrix - shape (2,2)
 R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
 
-# Process covariance matrix (shape 4x4)
+# Process covariance matrix - shape (4,4)
 Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
 
-# Initial state must be an array of shape 4x1
+# Initial state must be an array of shape (4,)
 x0: np.array = np.array(...)
 
 # Time step between radar measurements and EKF predictions (seconds)
