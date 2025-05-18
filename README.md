@@ -119,7 +119,7 @@ To obtain radar measurements, the user must instantiate the `Simulator` class to
 # Create an instance of the Simulator class
 simulator = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
 
-# Obtain noisy radar station measurements, longitude of radar station which provided the measurement and additional outputs
+# Obtain noisy radar station measurements, the longitude of the radar station which provided a given measurement and additional outputs
 times, real_measurements, noisy_measurements, active_radar_indices, active_radar_longitudes, crash_site, crash_time, full_trajectory = simulator.get_measurements()
 ```
 
