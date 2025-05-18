@@ -143,7 +143,7 @@ Having instantiated a predictor object, it is paramount that the predictor modul
 
 To ensure full transparency in the required workflow of the predictor, the following flowchart is provided.
 
-![predictor-flowchart.png](https://i.postimg.cc/mrbwT94w/predictor-flowchart.png)
+![predictor-flowchart.png](https://i.postimg.cc/SRgPm61F/Screenshot-2025-05-18-at-13-00-45.png)
 
 An ideal set-up for this is shown in the example script, `main.py`, which shows how the user **needs to** set up the problem. Once the predictor termination criteria is met (see documentation for more details), the user can call the following method to obtain outputs from the predictor:
 
