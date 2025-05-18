@@ -116,8 +116,10 @@ t0: float = ...
 To obtain radar measurements, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
 
 ```python
+# Create an instance of the Simulator class
 simulator = Simulator(initial_state=x0, measurement_covariance=R, timestep=del_t, t0=t0)
 
+# Obtain noisy radar station measurements, longitude of radar station which provided the measurement and additional outputs
 times, real_measurements, noisy_measurements, active_radar_indices, active_radar_longitudes, crash_site, crash_time, full_trajectory = simulator.get_measurements()
 ```
 
@@ -133,7 +135,7 @@ Having obtained the radar measurements, the user can instantiate an object of th
 # Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians - based on Tranquility Base)
 predictor_termination: float = 0.0007377
 
-# Create an instance of the predictor
+# Create an instance of the Predictor class
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
