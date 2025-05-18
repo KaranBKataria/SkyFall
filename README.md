@@ -134,6 +134,8 @@ Having obtained the radar measurements, the user can instantiate an object of th
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
+<img src="https://postimg.cc/G45YQHH8" alt="Alt text" width="400"/>
+
 ## Example script
 
 To see an example script of how to use SkyFall and the output, inspect `main.py`. To see the output, run the script via the following command in the shell
