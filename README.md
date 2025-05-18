@@ -134,7 +134,50 @@ Having obtained the radar measurements, the user can instantiate an object of th
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
+Having instantiated a predictor object, it is paramount that the predictor module follows a specific flow for the EKF algorithm to work successfully. To provide users with the flexibility to call individual steps of the algorithm, a pre-defined wrapper function has not been defined by default to run the predictor. This style is synonymous with other popular packages, such as [PyTorch](https://pytorch.org/). If desired, the user can create a wrapper function themselves. 
+
+To ensure full transparency in the required workflow of the predictor, the following flowchart is provided.
+
 ![predictor-flowchart.png](https://i.postimg.cc/mrbwT94w/predictor-flowchart.png)
+
+An ideal set-up for this is shown in the example script, `main.py`, which shows how the user **needs to** set up the problem. Once the predictor termination criteria is met (see documentation for more details), the user can call the following method to obtain outputs from the predictor:
+
+```python
+outputs = pred.get_outputs()
+
+# prior estimates of the EKF algorithm in state form
+outputs['prior_traj']
+
+# posterior estimates of the EKF algorithm in state form
+outputs['posterior_traj']
+
+# posterior estimates of the EKF algorithm in latitude, longitude and altitude
+outputs['posterior_traj_LLA']
+
+# posterior estimates of the EKF algorithm in the Cartesian coordinate system  
+outputs['posterior_traj_cart']
+
+# posterior estimates times 
+outputs['posterior_traj_times']
+
+# tensor of forecasted crash sites in state form 
+outputs['crash_site_forecasts']
+
+# mean crash site forecasts
+outputs['mean_crash_sites']
+
+# standard deviation of crash site forecasts
+outputs['std_crash_sites']
+
+# tensor of forecasted crash times  
+outputs['crash_site_times']
+
+# mean crash site time forecasts
+outputs['mean_crash_times']
+
+# standard deviation of crash time forecasts
+outputs['std_crash_times']
+```
 
 ## Example script
 
