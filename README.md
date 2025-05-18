@@ -1,9 +1,9 @@
 
 # SkyFall
 
-SkyFall is a Python-based library for simulating and predicting the crash site of a de-orbiting satellite on the equator of a spherical, rotating Earth. The package is by default based on the [ISEE-3](https://science.nasa.gov/mission/isee-3-ice/) satellite.
+SkyFall is a Python-based library for simulating and predicting the crash site of a de-orbiting satellite along the equator of a spherical, rotating Earth. The package is based on the [ISEE-3](https://science.nasa.gov/mission/isee-3-ice/) satellite by default.
 
-For more details about the underlying functionality, arguments, assumptions and more, please see the documentation markdown file. 
+Please see the documentation markdown file for more details about the underlying functionality, arguments, assumptions, and more. 
 
 ## Getting started
 
@@ -76,9 +76,38 @@ SkyFall takes a modular, class-based approach to simulating the de-orbit dynamic
 
 Below is a step-by-step guide on how to initialise, call and use the modules once imported as shown in the **Getting started** section.
 
-### Preliminaries
+### Preliminaries: user-specified arguements
 
-The three primary modules 
+The three modules share many common user-specified inputs. Therefore, it is required for the user to define such shared parameters before instantiating objects of the modules. Below are the common variables required, as well as functionality to create them (please see the documentation markdown file for the mathematical insight and more details on functions and their associated arguments):
+
+```python
+# Number of forecast Monte Carlo samples 
+n_samples: int = ...
+
+# Number of measurements between forecasts made
+nth_measurement: int = ...
+
+# Define the covariance matrices
+
+# State covariance matrix (shape 4x4)
+P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
+
+# Measurement covariance matrix (shape 2x2)
+R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
+
+# Process covariance matrix (shape 4x4)
+Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...], covariances=[...])
+
+# Initial state must be an array of shape 4x1
+x0: np.array = np.array(...)
+
+# Time step between radar measurements and EKF predictions
+del_t: float = ...
+
+# Initial time
+t0: float = ...
+
+```
 
 ### Simulator
 
