@@ -134,7 +134,7 @@ Having obtained the radar measurements, the user can instantiate an object of th
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
 
-<img src="https://postimg.cc/G45YQHH8" alt="Alt text" width="400"/>
+![predictor-flowchart.png](https://postimg.cc/G45YQHH8)
 
 ## Example script
 
