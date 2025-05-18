@@ -109,6 +109,8 @@ t0: float = ...
 
 ```
 
+>[!NOTE]
+> The initial state must be defined in the following order: radial distance from the centre of the Earth to the satellite, the initial longitude of the satellite, the radial velocity and the angular velocity. This ordering extends to defining the variances and covariances of the process and state covariance matrices.
 ### Simulator
 
 To use the simulator, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
