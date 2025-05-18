@@ -164,7 +164,7 @@ class Predictor:
 
         return h
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e, verbose=False) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=False) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -194,16 +194,34 @@ class Predictor:
         # Select correct parameters of the Barometric formula based on altitude (r)
         altitude = max(r - R_e, 0.0)
 
+        if altitude > 86e3:
+
+            ds = ussa1976.compute( np.linspace( (altitude/1000)-1, (altitude/1000)+1, num=3) )
+            rhos=ds["rho"].values
+            rho3=rhos[1]
+            
         # If altitude is above 86km, use an approximation formula, with a Jacobian given by F_func3
-        if altitude >= 86e3:
-            h_s = 7000.0
-            rho_b = base_rho[-1]
-            h_b = 86e3
+        # if altitude > 86e3:
+        #     # piecewise points in metres
+        #     if  altitude <= 100e3:  h_s = 7e3
+        #     elif altitude <= 110e3:  h_s = 10e3
+        #     elif altitude <= 120e3:  h_s = 15e3
+        #     elif altitude <= 130e3:  h_s = 20e3
+        #     elif altitude <= 140e3:  h_s = 25e3
+        #     elif altitude <= 150e3:  h_s = 30e3
+        #     elif altitude <= 160e3:  h_s = 35e3
+        #     elif altitude <= 170e3:  h_s = 37e3
+        #     elif altitude <= 180e3:  h_s = 40e3
+        #     elif altitude <= 190e3:  h_s = 42e3
+        #     elif altitude <= 200e3:  h_s = 45e3
+        #     else:             h_s = 50e3  # hold constant above 200 km
+        
+        #     rho_b = base_rho[-1]
+        #     h_b = 86e3
 
             F = F_func3(r=r, theta=theta, r_dot=r_dot, th_dot=th_dot, 
-                        G=G, M_e=M_e, Cd=Cd, A=A, m=m, rho_b=rho_b, R_air=R_air,
-                        g0=g0, h_b=h_b, h_s=h_s, R_e=R_e, omega_E=omega_E)
-            
+                        G=G, M_e=M_e, Cd=Cd, A=A, m=m, omega_E=omega_E, rho3=rho3)
+                        
             self.JacobianF = F
         
         # If altitude is less than 86km
@@ -567,3 +585,72 @@ class Predictor:
         }
 
         return output_dict
+    
+
+def run_predictor(
+    predictor, radar_measurements: np.array, active_radar_longitudes: np.array,
+    num_samples_MC: int, forecast_gap: int, verbose: bool = True) -> dict:
+    """
+    This function serves as a wrapper of running the predictor until termination,
+    obtaining information about it's estimated trajectories, impact distribution
+    and statistics, etc. This is a user-friendly alternative to manually creating
+    a loop for the predictor.
+
+        Inputs:
+                predictor: an object of the Predictor class
+                radar_measurements: the noisy radar station measurements from the simulator
+                active_radar_longitudes: the longitudes of the radar stations which provided
+                                         the measurements - also given by the simulator
+                num_samples_MC: the number of MC samples per forecast step
+                forecast_gap: the number of measurements between making forecasts
+                verbose: a boolean value to output print statements from the predictor
+
+        Outputs:
+                output: a dictionary of results from the predictor such as estimated
+                        trajectories, distributions of impact sites and times etc.
+    """
+    
+    # For each measurement recieved from the simulator, run the predictor
+    for count, (meas, theta_R) in enumerate(zip(radar_measurements, active_radar_longitudes)):
+        
+        # obtain the prior state of the satellite at the current time
+        predictor.process_model(include_noise=True, verbose=verbose)
+
+        # Evaluate the Jacobian of the process model
+        predictor.eval_JacobianF(
+            G=G, M_e=M_e, Cd=C_d,
+            A=A, m=m_s, R_air=R_air,
+            g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=verbose)
+
+        # Update the state covariance matrix to obtain a prior estimate
+        predictor.update_prior_belief(verbose=verbose)
+
+        # Obtain the residual/innovation
+        predictor.residual(measurement=meas, theta_R=theta_R, verbose=verbose)
+
+        # Evaluate the Jacobian of the measurement model
+        predictor.eval_JacobianH(theta_R=theta_R, R_e=R_e, omega_E=omega_E)
+
+        # Compute the Kalman gain matrix
+        predictor.kalman_gain(verbose=verbose)
+
+        # Update posterior estimates for the state vector and covariance matrix
+        predictor.assimilated_posterior_prediction(verbose=verbose)
+
+        # Forecast every forecast_gap measurements recieved
+        if count % forecast_gap == 0 and count > 0:
+
+            predictor.forecast(n_samples=num_samples_MC, final_time=4e9, verbose=verbose)
+
+            # If the longitude forecast is 2 standard deviations less than the required threshold, terminate the predictor 
+            if 2*predictor.forecasted_states_std[-1][1] <= predictor_termination:
+
+                print('Two standard deviations of forecasted crash state below 4.7km; terminating predictor.')
+                print(f'Predictor terminated after time {predictor.t} seconds.')
+
+                outputs = predictor.get_outputs()
+                
+                return outputs
+
+        else:
+            continue
