@@ -175,6 +175,15 @@ outputs['mean_crash_sites']
 # standard deviation of crash site forecasts
 outputs['std_crash_sites']
 
+# tensor of forecasted crash sites in ECEF latitude, longitude and altitude form in degrees 
+outputs['crash_site_forecasts_LLA_degree']
+
+# mean crash site forecasts in ECEF latitude, longitude and altitude form in degrees 
+outputs['mean_crash_site_forecasts_LLA_degree']
+
+# standard deviation of crash site forecasts in ECEF latitude, longitude and altitude form in degrees 
+outputs['std_crash_site_forecasts_LLA_degree']
+
 # tensor of forecasted crash times  
 outputs['crash_site_times']
 
