@@ -36,12 +36,11 @@ class Visualiser:
         self.lon = trajectory_LLA[:,1]
         self.altitude = trajectory_LLA[:,-1]
 
-        self.crash_lon_list = crash_lon_list
+        # Adjust crash_lon_list length to match times
+        crash_lon_list = self._adjust_crash_lon_list(crash_lon_list, len(times))
+        n_steps = crash_lon_list.shape[0]
+        self.crash_lon_list = [crash_lon_list[i, :, 0] for i in range(n_steps)]
 
-        # # forecast_states_repeated = np.repeat(forecast_states, repeats=5, axis=0)
-        # n_steps = forecast_states_repeated.shape[0]
-        # self.crash_x_list = [forecast_states_repeated[i, :, 0] for i in range(n_steps)]
- 
 
         # Debug: Check data lengths and values
         if len(self.times) != len(self.xs) or len(self.xs) != len(self.ys):
@@ -49,6 +48,35 @@ class Visualiser:
         
         # if self.crash_x_list is not None and len(self.crash_x_list) != len(self.times):
         #     raise ValueError(f"Length mismatch: crash_x_list ({len(self.crash_x_list)}), times ({len(self.times)})")
+
+    def _adjust_crash_lon_list(self, crash_lon_list, target_length):
+        """
+        Adjust crash_lon_list length to match target_length by repeating elements.
+        
+        Args:
+            crash_lon_list: Array of crash longitude predictions (shape: [sets, samples, dims])
+            target_length: Desired length (equal to len(times))
+        
+        Returns:
+            Array with length equal to target_length along the first axis
+        """
+        if len(crash_lon_list) == 0:
+            raise ValueError("crash_lon_list cannot be empty")
+            
+        repeat_times = 5  # Number of times to repeat each prediction set
+        base_length = len(crash_lon_list) * repeat_times
+        
+        # Step 1: Repeat each prediction set repeat_times times along axis 0
+        adjusted_list = np.repeat(crash_lon_list, repeat_times, axis=0)
+        
+        # Step 2: Add extra elements if needed, copying the last prediction set
+        extra_length = target_length - base_length
+        if extra_length > 0:
+            # Use the last prediction set of the original crash_lon_list
+            extra_elements = np.repeat(crash_lon_list[-1][np.newaxis, :], extra_length, axis=0)
+            adjusted_list = np.concatenate([adjusted_list, extra_elements], axis=0)
+
+        return adjusted_list
 
     def _convert_to_lonlat(self):
         """
@@ -516,7 +544,7 @@ class Visualiser:
             ax_crash.set_xlim(min(times) - 0.1 * (max(times) - min(times)), 
                              max(times) + 0.1 * (max(times) - min(times)))
             crash_lons_flat = np.concatenate(crash_lons_list)
-            # ax_crash.set_ylim(min(crash_lons_flat) * 0.9, max(crash_lons_flat) * 1.1)
+            ax_crash.set_ylim(min(crash_lons_flat) * 0.9, max(crash_lons_flat) * 1.1)
         ax_crash.tick_params(axis='both', which='major', labelsize=tick_fontsize)
         crash_scatter = None
 
@@ -578,38 +606,35 @@ class Visualiser:
                             blit=False, repeat=False)
 
         # Add buttons
-        ax_play_pause = plt.axes(button_pos_play_pause)
-        ax_reset = plt.axes(button_pos_reset)
-        btn_play_pause = Button(ax_play_pause, 'Pause')
-        btn_reset = Button(ax_reset, 'Reset')
+        # ax_play_pause = plt.axes(button_pos_play_pause)
+        # ax_reset = plt.axes(button_pos_reset)
+        # btn_play_pause = Button(ax_play_pause, 'Pause')
+        # btn_reset = Button(ax_reset, 'Reset')
 
-        def toggle_play_pause(event):
-            if is_running[0]:
-                if ani.event_source is not None:
-                    ani.event_source.stop()
-                is_running[0] = False
-                btn_play_pause.label.set_text('Play')
-            else:
-                if ani.event_source is None:
-                    ani.event_source = ani._get_new_event_source()
-                ani.event_source.start()
-                is_running[0] = True
-                btn_play_pause.label.set_text('Pause')
-            fig.canvas.draw()
+        # def toggle_play_pause(event):
+        #     if is_running[0]:
+        #         ani.event_source.stop()
+        #         is_running[0] = False
+        #         btn_play_pause.label.set_text('Play')
+        #     else:
+        #         ani.event_source.start()
+        #         is_running[0] = True
+        #         btn_play_pause.label.set_text('Pause')
+        #     fig.canvas.draw()
 
-        def reset(event):
-            ani.frame_seq = ani.new_frame_seq()
-            if ani.event_source is not None:
-                ani.event_source.stop()
-            ani._iter_gen = iter(range(len(lons)))
-            is_running[0] = False
-            btn_play_pause.label.set_text('Play')
-            init()
-            ani._draw_frame(0)
-            fig.canvas.draw()
+        # def reset(event):
+        #     ani.frame_seq = ani.new_frame_seq()
+        #     if ani.event_source is not None:
+        #         ani.event_source.stop()
+        #     ani._iter_gen = iter(range(len(lons)))
+        #     is_running[0] = False
+        #     btn_play_pause.label.set_text('Play')
+        #     init()
+        #     ani._draw_frame(0)
+        #     fig.canvas.draw()
 
-        btn_play_pause.on_clicked(toggle_play_pause)
-        btn_reset.on_clicked(reset)
+        # btn_play_pause.on_clicked(toggle_play_pause)
+        # btn_reset.on_clicked(reset)
 
         # Adjust layout manually
         fig.subplots_adjust(left=0.1, right=0.95, bottom=0.15, top=0.95, hspace=0.3, wspace=0.2)
