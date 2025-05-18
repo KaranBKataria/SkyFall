@@ -101,16 +101,16 @@ Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[...],
 # Initial state must be an array of shape 4x1
 x0: np.array = np.array(...)
 
-# Time step between radar measurements and EKF predictions
+# Time step between radar measurements and EKF predictions (seconds)
 del_t: float = ...
 
-# Initial time
+# Initial time (seconds)
 t0: float = ...
 
 ```
 
 >[!NOTE]
-> The initial state must be defined in the following order: radial distance from the centre of the Earth to the satellite, the initial longitude of the satellite, the radial velocity and the angular velocity. This ordering extends to defining the variances and covariances of the process and state covariance matrices.
+> The initial state must be defined in the following order: radial distance from the centre of the Earth to the satellite, the initial longitude of the satellite, the radial velocity and the angular velocity. This ordering extends to defining the variances and covariances of the process and state covariance matrices. All units are in metres, radians and seconds.
 ### Simulator
 
 To use the simulator, the user must instantiate the `Simulator` class to generate radar station measurements. This can be achieved in the following way.
