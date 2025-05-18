@@ -132,8 +132,6 @@ Having obtained the radar measurements, the user can instantiate an object of th
 ```python
 # Create an instance of the predictor
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
-
-times, real_measurements, noisy_measurements, active_radar_indices, active_radar_longitudes, crash_site, crash_time, full_trajectory = simulator.get_measurements()
 ```
 
 ## Example script
