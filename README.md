@@ -132,9 +132,6 @@ To give the user the flexibility to conduct further analysis, outputs such as th
 Having obtained the radar measurements, the user can instantiate an object of the `Predictor` class to estimate the position of the satellite at each specified time step and obtain a distribution of impact site and time forecasts via Monte Carlo sampling. The predictor is based on the [Extended Kalman Filter (EKF)](https://www.researchgate.net/publication/2888846_Kalman_and_Extended_Kalman_Filters_Concept_Derivation_and_Properties) algorithm; please see the documentation for further mathematical insight.
 
 ```python
-# Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians - based on Tranquillity Base)
-predictor_termination: float = 0.0007377
-
 # Create an instance of the Predictor class
 predictor = Predictor(process_covariance=Q, measurement_covariance=R, state_covariance=P, initial_state=x0, timestep=del_t, t0=t0)
 ```
