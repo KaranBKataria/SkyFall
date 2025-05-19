@@ -207,10 +207,10 @@ visualise = Visualiser(
     crash_lon_list=outputs['crash_site_forecasts_LLA_degree']
 )
 
-# Obtain a plot of the orbital decay trajectory
+# Obtain a plot of the orbital decay trajectory on a world map, altitude vs. time, and box plot distributions of forecasted crash sites
 visualise.plot_orbit()
 
-# Obtain a dynamic plot of the orbital decay trajectory on a world map
+# Obtain an animated version of the plot_orbit() method
 visualise.animate_orbit()
 
 # Obtain box plots highlighting the forecasted impact sites
