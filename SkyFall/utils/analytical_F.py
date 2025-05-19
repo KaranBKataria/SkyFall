@@ -15,7 +15,7 @@ import sympy as sp
 r, theta, r_dot, th_dot = sp.symbols('r theta r_dot th_dot')
 
 # Define other symbols (e.g. constants)
-G, M_e, Cd, A, m, rho_b, R_air, g0, T_b, h_b, h_s, L_b, R_e, omega_E = sp.symbols('G M_e Cd A m rho_b R_air g0 T_b h_b h_s L_b R_e omega_E')
+G, M_e, Cd, A, m, rho_b, R_air, g0, T_b, h_b, h_s, L_b, R_e, omega_E, rho3 = sp.symbols('G M_e Cd A m rho_b R_air g0 T_b h_b h_s L_b R_e omega_E rho3')
 
 # Define state
 # state = sp.Matrix([x, y, vx, vy])
@@ -30,7 +30,6 @@ h = r - R_e
 # Drag coefficient and density
 rho1 = rho_b * (T_b / (T_b + (L_b*(h - h_b)))) ** (1 + ((g0)/(R_air * L_b)))
 rho2 = rho_b * sp.exp(-((g0 * (h - h_b)) / (R_air * T_b)))
-rho3 = rho_b * sp.exp(-((h - h_b) / (h_s)))
 
 D1 = ((1/2) * Cd * A * rho1) / (m)
 D2 = ((1/2) * Cd * A * rho2) / (m)
@@ -86,11 +85,8 @@ F1 = f1.jacobian(state)
 F2 = f2.jacobian(state)
 F3 = f3.jacobian(state)
 
-# latex_str = sp.latex(F)
-# print(latex_str)
-
 # Enable it to be a NumPy function which can be evaluated - this will be passed into the main Predictor class in
 # predictor.py
 F_func1 = sp.lambdify((r, theta, r_dot, th_dot, G, M_e, Cd, A, m, rho_b, R_air, g0, T_b, h_b, L_b, R_e, omega_E), F1, modules='numpy')
 F_func2 = sp.lambdify((r, theta, r_dot, th_dot, G, M_e, Cd, A, m, rho_b, R_air, g0, T_b, h_b, R_e, omega_E), F2, modules='numpy')
-F_func3 = sp.lambdify((r, theta, r_dot, th_dot, G, M_e, Cd, A, m, rho_b, R_air, g0, h_b, h_s, R_e, omega_E), F3, modules='numpy')
+F_func3 = sp.lambdify((r, theta, r_dot, th_dot, G, M_e, Cd, A, m, omega_E, rho3), F3, modules='numpy')

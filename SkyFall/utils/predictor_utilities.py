@@ -6,6 +6,7 @@ Group: ISEE-3
 """
 
 from scipy.integrate import solve_ivp
+import ussa1976
 
 # Load in constant variables (e.g. Earth's radius)
 from .global_variables import *
@@ -69,36 +70,7 @@ def covariance_matrix_initialiser(variances: np.array, covariances=None) -> np.a
 
     return cov_mat
 
-# def barometric_air_density(y: float) -> float:
-#     """
-#     This function returns the air density at a given
-#     altitude y using the Barometric formula.
-
-#         Input:
-#                 y: Altitude of satellite (m) above Earth's surface
-        
-#         Output:
-#                 rho: The air density at altitude y
-#     """
-
-#     # Pick highest b with h_b <= y
-#     hb   = layers[0]["h"]
-#     rhob = layers[0]["rho"]
-#     Tb   = layers[0]["T"]
-
-#     for b in reversed(range(len(layers))):
-#         if y >= layers[b]["h"]:
-#             hb   = layers[b]["h"]
-#             rhob = layers[b]["rho"]
-#             Tb   = layers[b]["T"]
-#             break
-    
-#     # Compute air density as a function of altitude (Barometric formula) 
-#     rho = rhob * np.exp(-g0 * M_molar * (y - hb) / (R_star * Tb))
-    
-#     return rho
-
-def USA76_air_density(y: float) -> float:
+def USA76_air_density(y: float) -> float: 
     """
     This function returns the air density at a given
     altitude y based on the U.S. Standard Atmosphere
@@ -113,11 +85,14 @@ def USA76_air_density(y: float) -> float:
     if y < 0:
         y = 0.0
     
-    if y > 86e3:                      
-        h_s  = 7000.0
-        rho = base_rho[-1]*np.exp(-(y-86e3)/h_s)
-        return rho
-    
+    if y > 86e3:
+
+        ds = ussa1976.compute( np.linspace( (y/1000)-1, (y/1000)+1, num=3) )
+        rhos=ds["rho"].values
+        rho3=rhos[1]
+        
+        return rho3
+          
     for index, (h_b, _, _) in enumerate(layers):
         if y >= h_b:
             layer = index
