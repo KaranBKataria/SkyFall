@@ -31,7 +31,7 @@ class Visualiser:
         self.vxs = trajectory_cartesian[:,2]
         self.vys = trajectory_cartesian[:,3]
 
-        # NB: Longitude and Latitude is in degrees (NOT RADIANS)
+        # NB: Longitude and Latitude are in degrees (NOT RADIANS)
         self.lat = trajectory_LLA[:,0]
         self.lon = trajectory_LLA[:,1]
         self.altitude = trajectory_LLA[:,-1]
@@ -42,16 +42,10 @@ class Visualiser:
         # self.crash_lons_list_dis = [np.array(crash_xs) / self.R_earth * 180 / np.pi for crash_xs in crash_lon_list_temp]
         self.crash_lons_list_dis = crash_lon_list
 
-        # print("crash_lon_list shape:")
-        # print(crash_lon_list.shape)
-        # print(crash_lon_list)
-
         # Adjust crash_lon_list length to match times
         crash_lon_list_ani = self._adjust_crash_lon_list(crash_lon_list, len(times))
         n_steps = crash_lon_list_ani.shape[0]
         self.crash_lon_list_ani = [crash_lon_list_ani[i, :, 1] for i in range(n_steps)]
-
-        
 
         # Debug: Check data lengths and values
         if len(self.times) != len(self.xs) or len(self.xs) != len(self.ys):
