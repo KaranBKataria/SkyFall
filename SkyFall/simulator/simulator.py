@@ -139,8 +139,6 @@ class Simulator:
             active_radar_longitude = theta_R[index_active_radar]
             radar_measurements_noiseless = measurement_model_h(state=state, radar_longitude=active_radar_longitude)
 
-            # active_radar_station_longitudes_per_time.append((np.degrees(active_radar_longitude) + 180) % 360 - 180)
-            # active_radar_station_longitudes_per_time.append((active_radar_longitude + np.pi) % (2*np.pi) - np.pi)
             active_radar_station_longitudes_per_time.append(active_radar_longitude)
 
             # Perturb the 'real' radar measurements with Gaussian noise 
