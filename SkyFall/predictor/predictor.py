@@ -76,6 +76,10 @@ class Predictor:
         self.forecasted_states_mean = []
         self.forecasted_states_std = []
 
+        self.forecasted_states_LLA_deg = []
+        self.forecasted_states_LLA_deg_mean = []
+        self.forecasted_states_LLA_deg_std = []
+
         self.forecasted_times = []
         self.forecasted_times_mean = []
         self.forecasted_times_std = []
@@ -152,7 +156,7 @@ class Predictor:
 
             Input:
                     self
-                    theta_R: the longitude of the 'active' satellite at time self.t
+                    theta_R: the longitude of the 'active' radar at time self.t
             
             Output:
                     h: the measurement model output
@@ -164,7 +168,7 @@ class Predictor:
 
         return h
 
-    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e, verbose=False) -> np.array:
+    def eval_JacobianF(self, G=G, M_e=M_e, Cd=C_d, A=A, m=m_s, R_air=R_air, g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=False) -> np.array:
 
         """
         This function evaluates the analytical Jacobian of process model using SymPy. This function
@@ -194,16 +198,15 @@ class Predictor:
         # Select correct parameters of the Barometric formula based on altitude (r)
         altitude = max(r - R_e, 0.0)
 
-        # If altitude is above 86km, use an approximation formula, with a Jacobian given by F_func3
-        if altitude >= 86e3:
-            h_s = 7000.0
-            rho_b = base_rho[-1]
-            h_b = 86e3
+        if altitude > 86e3:
+
+            ds = ussa1976.compute( np.linspace( (altitude/1000)-1, (altitude/1000)+1, num=3) )
+            rhos=ds["rho"].values
+            rho3=rhos[1]
 
             F = F_func3(r=r, theta=theta, r_dot=r_dot, th_dot=th_dot, 
-                        G=G, M_e=M_e, Cd=Cd, A=A, m=m, rho_b=rho_b, R_air=R_air,
-                        g0=g0, h_b=h_b, h_s=h_s, R_e=R_e, omega_E=omega_E)
-            
+                        G=G, M_e=M_e, Cd=Cd, A=A, m=m, omega_E=omega_E, rho3=rho3)
+                        
             self.JacobianF = F
         
         # If altitude is less than 86km
@@ -311,7 +314,7 @@ class Predictor:
         if verbose is True:
             print(f'Current prior state covariance matrix:\n {self.prior_state_covariance}\n')
 
-    def residual(self, measurement: np.array, theta_R: float, measurement_model=measurement_model, verbose: bool = True):
+    def residual(self, measurement: np.array, theta_R: float, verbose: bool = True):
         """
         This function computes the residual of the true measurement data and the predicted
         measurement data, computed from the measurement model and the prior state estimate 
@@ -327,7 +330,7 @@ class Predictor:
                     res: the residual value, y
         """
         
-        residual = np.array(measurement - measurement_model(self, theta_R=theta_R))
+        residual = np.array(measurement - self.measurement_model(theta_R=theta_R))
 
         # If there is a single value (i.e. size-1 array), reshape it for compatibility with later linear algebra
         if residual.size == 1:
@@ -473,6 +476,7 @@ class Predictor:
 
         # Define lists to be populated with sample crash predictions and timings
         predictions = []
+        predictions_LLA_deg = []
         crash_times = []
 
         # if samples.size == 0:
@@ -501,16 +505,22 @@ class Predictor:
                 if forecasted_state.y_events[0].size > 0:
                     crash_state = forecasted_state.y_events[0].flatten()
                     predictions.append(crash_state)
+                    predictions_LLA_deg.append(ECI_to_ECEF(time=self.t, state=crash_state)[-1])
                     crash_times.append(forecasted_state.t_events[0] + self.t)
                     break
 
         # Return the distribution of predictions and timings, and their statistics, reshaped into an appropriate format
         predictions = np.array(predictions).reshape(n_samples, state.shape[0])
+        predictions_LLA_deg = np.array(predictions_LLA_deg).reshape(n_samples, state.shape[0]-1)
         crash_times = np.array(crash_times).reshape(n_samples, 1)
 
         self.forecasted_states.append(predictions)
         self.forecasted_states_mean.append(predictions.mean(axis=0))
         self.forecasted_states_std.append(predictions.std(axis=0))
+
+        self.forecasted_states_LLA_deg.append(predictions_LLA_deg)
+        self.forecasted_states_LLA_deg_mean.append(predictions_LLA_deg.mean(axis=0))
+        self.forecasted_states_LLA_deg_std.append(predictions_LLA_deg.std(axis=0))
 
         self.forecasted_times.append(crash_times)
         self.forecasted_times_mean.append(crash_times.mean(axis=0))
@@ -542,10 +552,15 @@ class Predictor:
         posterior_trajectories_cartesian = np.asarray(self.posterior_traj_states_cartesian)
         posterior_traj_times = np.asarray(self.posterior_traj_times)
 
-        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step
+        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step in ECF frame
         crash_site_forecasts = np.asarray(self.forecasted_states)
         mean_crash_site_forecasts = np.asarray(self.forecasted_states_mean)
         std_crash_site_forecasts = np.asarray(self.forecasted_states_std)
+
+        # Obtain crash site forecast information, such as distributions, averages and standard deviations per MC step in ECF frame
+        crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg)
+        mean_crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg_mean)
+        std_crash_site_forecasts_LLA_deg = np.asarray(self.forecasted_states_LLA_deg_std)
 
         # Obtain crash time forecast information, such as distributions, averages and standard deviations per MC step
         crash_site_times = np.asarray(self.forecasted_times)
@@ -558,12 +573,87 @@ class Predictor:
             'posterior_traj_LLA': posterior_trajectories_LLA,
             'posterior_traj_cart': posterior_trajectories_cartesian,
             'posterior_traj_times': posterior_traj_times,
+
             'crash_site_forecasts': crash_site_forecasts,
             'mean_crash_sites': mean_crash_site_forecasts,
             'std_crash_sites': std_crash_site_forecasts,
+
+            'crash_site_forecasts_LLA_degree': crash_site_forecasts_LLA_deg,
+            'mean_crash_site_forecasts_LLA_degree': mean_crash_site_forecasts_LLA_deg,
+            'std_crash_site_forecasts_LLA_degree': std_crash_site_forecasts_LLA_deg,
+
             'crash_site_times': crash_site_times,
             'mean_crash_times': mean_crash_site_times,
             'std_crash_times': std_crash_site_times 
         }
 
         return output_dict
+    
+
+def run_predictor(
+    predictor, radar_measurements: np.array, active_radar_longitudes: np.array,
+    num_samples_MC: int, forecast_gap: int, verbose: bool = True) -> dict:
+    """
+    This function serves as a wrapper of running the predictor until termination,
+    obtaining information about it's estimated trajectories, impact distribution
+    and statistics, etc. This is a user-friendly alternative to manually creating
+    a loop for the predictor.
+
+        Inputs:
+                predictor: an object of the Predictor class
+                radar_measurements: the noisy radar station measurements from the simulator
+                active_radar_longitudes: the longitudes of the radar stations which provided
+                                         the measurements - also given by the simulator
+                num_samples_MC: the number of MC samples per forecast step
+                forecast_gap: the number of measurements between making forecasts
+                verbose: a boolean value to output print statements from the predictor
+
+        Outputs:
+                output: a dictionary of results from the predictor such as estimated
+                        trajectories, distributions of impact sites and times etc.
+    """
+    
+    # For each measurement recieved from the simulator, run the predictor
+    for count, (meas, theta_R) in enumerate(zip(radar_measurements, active_radar_longitudes)):
+        
+        # obtain the prior state of the satellite at the current time
+        predictor.process_model(include_noise=True, verbose=verbose)
+
+        # Evaluate the Jacobian of the process model
+        predictor.eval_JacobianF(
+            G=G, M_e=M_e, Cd=C_d,
+            A=A, m=m_s, R_air=R_air,
+            g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=verbose)
+
+        # Update the state covariance matrix to obtain a prior estimate
+        predictor.update_prior_belief(verbose=verbose)
+
+        # Obtain the residual/innovation
+        predictor.residual(measurement=meas, theta_R=theta_R, verbose=verbose)
+
+        # Evaluate the Jacobian of the measurement model
+        predictor.eval_JacobianH(theta_R=theta_R, R_e=R_e, omega_E=omega_E)
+
+        # Compute the Kalman gain matrix
+        predictor.kalman_gain(verbose=verbose)
+
+        # Update posterior estimates for the state vector and covariance matrix
+        predictor.assimilated_posterior_prediction(verbose=verbose)
+
+        # Forecast every forecast_gap measurements recieved
+        if count % forecast_gap == 0 and count > 0:
+
+            predictor.forecast(n_samples=num_samples_MC, final_time=4e9, verbose=verbose)
+
+            # If the longitude forecast is 2 standard deviations less than the required threshold, terminate the predictor 
+            if 2*predictor.forecasted_states_std[-1][1] <= predictor_termination:
+
+                print('Two standard deviations of forecasted crash state below 4.7km; terminating predictor.')
+                print(f'Predictor terminated after time {predictor.t} seconds.')
+
+                outputs = predictor.get_outputs()
+                
+                return outputs
+
+        else:
+            continue
