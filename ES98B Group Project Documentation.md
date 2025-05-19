@@ -165,7 +165,7 @@ The main script `main.py` calls these modules sequentially, handling data flow a
     - `initial_state`: np.array,
         - This specifies the starting point of the satellite from the moment it begins experiencing orbital decay.
     - `measurement_covariance`: np.array,
-        - This specifies a constant matrix R. This is the noise corrupting the truth of measured attributes of the satellite.
+        - This specifies a constant matrix R. This is the noise corrupting the truth of the measured attributes of the satellite.
     - `timestep`: float,
         - - Timestep for the numerical method RK45.
     - `t0`: float = 0,
