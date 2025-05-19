@@ -194,6 +194,35 @@ outputs['mean_crash_times']
 outputs['std_crash_times']
 ```
 
+### Visualiser
+
+Upon outputting the predictor data using the `get_outputs()` method above, the user can utilise the visualiser module to visualise plots on the trajectory of the predictor estimates of the satellite's positions, as well as distributions of the forecasted crash sites. This includes both static and dynamic plots. How the visualiser and the various plot types can be instantiated is shown below:
+
+```python
+# Create an instance of the Visualiser class
+visualise = Visualiser(
+    times=outputs['posterior_traj_times'],
+    trajectory_cartesian=outputs['posterior_traj_cart'],
+    trajectory_LLA=outputs['posterior_traj_LLA'],
+    crash_lon_list=outputs['crash_site_forecasts_LLA_degree']
+)
+
+# Obtain a plot of the orbital decay trajectory
+visualise.plot_orbit()
+
+# Obtain a dynamic plot of the orbital decay trajectory on a world map
+visualise.animate_orbit()
+
+# Obtain box plots highlighting the forecasted impact sites
+visualise.plot_crash_distribution()
+
+# Obtain a plot for the altitude vs. time
+visualise.plot_height_vs_time()
+
+# Obtain a plot of the orbital decay trajectory on a world map
+visualise.plot_orbit_map()
+```
+
 ## Example script
 
 To see an example script of how to use SkyFall and the output, inspect `main.py`. To see the output, run the script via the following command in the shell
