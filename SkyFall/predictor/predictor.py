@@ -1,14 +1,14 @@
 """
 This script defines the main predictor class, containing the key functionality
-the user will interact with via methods. See a toy example at the bottom making use
+the user will interact with via methods. See a toy example at the bottom, making use
 of this class.
 
 Module: ES98B
 Group: ISEE-3
 """
 
-# Import in the key functionalities; NB: addititional modules will also be loaded that are imported into the predictor_utilities
-# file. Ask Karan for more info. if needed
+# Import the key functionalities; NB: additional modules will also be loaded that are imported into the predictor_utilities
+# file.
 from SkyFall.utils import *
 
 class Predictor:
@@ -40,7 +40,7 @@ class Predictor:
         # Define assert statement to ensure state vector is of the correct shape
         assert initial_state.shape == (4,), "Shape of the initial state must be (4,)"
 
-        # Define the covariance matrices. NB: There will be 3 seperate states the state vector and state covariance matrix
+        # Define the covariance matrices. NB: There will be 3 separate states that the state vector and state covariance matrix
         # can take.
         self.process_covariance = process_covariance
         self.measurement_covariance = measurement_covariance
