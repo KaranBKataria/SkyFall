@@ -6,7 +6,6 @@ Group: ISEE-3
 """
 
 from scipy.integrate import solve_ivp
-import ussa1976
 
 # Load in constant variables (e.g. Earth's radius)
 from .global_variables import *
@@ -99,7 +98,7 @@ def covariance_matrix_initialiser(variances: np.array, covariances=None) -> np.a
     
 #     return rho
 
-def USA76_air_density(y: float) -> float: 
+def USA76_air_density(y: float) -> float:
     """
     This function returns the air density at a given
     altitude y based on the U.S. Standard Atmosphere
@@ -114,35 +113,10 @@ def USA76_air_density(y: float) -> float:
     if y < 0:
         y = 0.0
     
-    if y > 86e3:
-
-        ds = ussa1976.compute( np.linspace( (y/1000)-1, (y/1000)+1, num=3) )
-        rhos=ds["rho"].values
-        rho3=rhos[1]
-        
-        return rho3
-        
-    # if y > 86e3:
-    # # piecewise points in metres
-    #     if   y <= 100e3:  h_s = 7e3
-    #     elif y <= 110e3:  h_s = 10e3
-    #     elif y <= 120e3:  h_s = 15e3
-    #     elif y <= 130e3:  h_s = 20e3
-    #     elif y <= 140e3:  h_s = 25e3
-    #     elif y <= 150e3:  h_s = 30e3
-    #     elif y <= 160e3:  h_s = 35e3
-    #     elif y <= 170e3:  h_s = 37e3
-    #     elif y <= 180e3:  h_s = 40e3
-    #     elif y <= 190e3:  h_s = 42e3
-    #     elif y <= 200e3:  h_s = 45e3
-    #     else:             h_s = 50e3  # hold constant above 200 km
-
-    #     # base density at 86 km:
-    #     rho_86 = base_rho[-1]
-    #     # exponential fall‐off from 86 km using piecewise scale height
-    #     rho = rho_86 * np.exp(-(y - 86e3) / h_s)
-    #     return rho
-    
+    if y > 86e3:                      
+        h_s  = 7000.0
+        rho = base_rho[-1]*np.exp(-(y-86e3)/h_s)
+        return rho
     
     for index, (h_b, _, _) in enumerate(layers):
         if y >= h_b:

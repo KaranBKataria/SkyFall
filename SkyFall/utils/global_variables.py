@@ -9,9 +9,6 @@ Group: ISEE-3
 
 import numpy as np
 
-# Define predictor termination criteria (by default <= 4700m or equivalently <= 0.0007377 in radians) based on Tranquility Base
-predictor_termination: float = 0.0007377
-
 # Physical constants 
 
 # Gravitational constant
@@ -45,8 +42,6 @@ R_star = 8.3144598
 
 # Specific Gas Constant
 R_air = 287.05287
-
-h_s = 50000.0
 
 # US Standard atmospheric model layers
 layers = [ # H_b, T_b, L_b           
