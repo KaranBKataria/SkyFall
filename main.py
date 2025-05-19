@@ -1,6 +1,6 @@
 """
 This script serves as an example for the user to understand how to use
-SkyFall, what user-defined arguements are required, the form of the output,
+SkyFall, what user-defined arguments are required, the form of the output,
 what can be tweaked etc.
 
 Module: ES98B
@@ -12,8 +12,6 @@ from SkyFall.simulator.simulator import Simulator
 from SkyFall.visualiser.visualiser import Visualiser
 from SkyFall.utils.global_variables import *
 from SkyFall.utils import predictor_utilities
-
-import matplotlib.pyplot as plt
 
 def main():
 
@@ -39,7 +37,7 @@ def main():
     # Initialise the initial conditions and timestep
 
     # NB: The state is in polar coordinates of the form r, theta, r_dot and th_dot
-    # Compute alitutude (m) and hence distance from Earth's centre
+    # Compute altitude (m) and hence distance from Earth's centre
     h: float = 150e3
     r: float = R_e + h
 
@@ -60,8 +58,6 @@ def main():
     times, real_data, noisy_data, active_radar_indices, active_radar_longitudes, crash_site, crash_time, real_traj \
         = sim.get_measurements()
         
-    print(crash_site)
-
     # Create an object of the predictor
     pred = Predictor(
         process_covariance=Q,
@@ -72,18 +68,15 @@ def main():
         t0=t0
     )
 
-    # For each measurement recieved, run the predictor
-    for count, (meas, theta_R, traj) in enumerate(zip(real_data, active_radar_longitudes, real_traj)):
+    # For each measurement received, run the predictor
+    for count, (meas, theta_R) in enumerate(zip(real_data, active_radar_longitudes)):
         
-        print(f'Simulator ODE output {count+1}: {traj}')
-
-        print(f'Process alt {pred.posterior_state[0] - R_e}')
         pred.process_model(include_noise=True, verbose=True)
-        print(f'Jacobian alt {pred.prior_state[0] - R_e}')
+    
         pred.eval_JacobianF(
             G=G, M_e=M_e, Cd=C_d,
             A=A, m=m_s, R_air=R_air,
-            g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=True)
+            g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=False)
 
         pred.update_prior_belief(verbose=False)
 
@@ -106,6 +99,7 @@ def main():
                 print(f'Predictor terminated after time {pred.t} seconds.')
 
                 outputs = pred.get_outputs()
+                
                 posterior_trajectories_LLA = outputs['posterior_traj_LLA']
                 prior_traj = outputs['prior_traj']
                 posterior_traj = outputs['posterior_traj']
@@ -114,7 +108,6 @@ def main():
 
                 forecasted_crash_LLA = outputs['crash_site_forecasts']
                 # forecasted_crash_LLA = outputs['crash_site_forecasts_LLA_degree']
-                print(f'Shape of forecasted_crash_LLA: {forecasted_crash_LLA.shape}')
                 mean_forecasted_crash_LLA = outputs['mean_crash_site_forecasts_LLA_degree']
                 mean_forecasted_crash_time = outputs['mean_crash_times']
 
@@ -143,17 +136,5 @@ def main():
         else:
             continue
         
-
-    plt.figure()
-    plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='Posterior EKF state')
-    # plt.plot(traj_times, prior_traj[:,-1]/1000, marker='s', label='EKF state')
-    plt.plot(times, (real_traj[:,0]-R_e)/1000, marker='x', label='Real measurement data')
-    # plt.xlim(0, 1000)
-    # plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Altitude (km)')
-    plt.legend(loc='best')
-    plt.show()
-
 if __name__ == "__main__":
     main()
