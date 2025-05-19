@@ -7,8 +7,6 @@ Module: ES98B
 Group: ISEE-3
 """
 
-## THIS IS A WORKING FILE - PERFECT BEFORE FOR THE FINAL SUBMISSON
-
 from SkyFall.predictor import Predictor, run_predictor
 from SkyFall.simulator.simulator import Simulator
 from SkyFall.visualiser.visualiser import Visualiser
@@ -16,10 +14,6 @@ from SkyFall.utils.global_variables import *
 from SkyFall.utils import predictor_utilities
 
 import matplotlib.pyplot as plt
-# from filterpy.common import Q_discrete_white_noise # 17th May Changes
-
-# import cartopy.crs as ccrs
-# import cartopy.feature as cfeature
 
 def main():
 
@@ -35,15 +29,11 @@ def main():
 
     # State covariance matrix (4x4)
     P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[3000, 1, 1000, 0.5], covariances=None)
-    # P: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[100, 1e-2, 100, 1e-4], covariances=None)
 
     # Measurement covariance matrix (2x2)
-    # R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[10**2, (0.0005)**2], covariances=None)
-    # R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1e8, 1e4], covariances=[1e2])
     R: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[1000**2, 4], covariances=None)
 
     # # Process covariance matrix (4x4)
-    # Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[10, 1e-4, 1, 1e-8], covariances=[0,2,0,0,1e-6,0])
     Q: np.array = predictor_utilities.covariance_matrix_initialiser(variances=[20**2, 0.0001**2, 0.2**2, 1e-14], covariances=None)
 
     # Initialise the initial conditions and timestep
@@ -56,11 +46,12 @@ def main():
     v_c = np.sqrt(G*M_e / r)
 
     # Compute initial angular velocity (> 0 for prograde motion; mimicing realistic satellite orbits)
-    th_dot0 = (v_c - 30)/r
+    th_dot0 = (v_c - 10)/r
 
     # Initial state must be an array of shape 4x1
     x0: np.array = np.array([r, 0.0, 0.0, th_dot0])
 
+    # Define the initial time and time step
     del_t: float = 20
     t0: float = 0.0
 
@@ -70,12 +61,6 @@ def main():
         = sim.get_measurements()
         
     print(crash_site)
-
-    # print(f'Noisy data shape: {noisy_data.shape}')
-    # print(f'Real data shape: {real_data.shape}')
-    # print(f'Times shape: {times.shape}')
-    # print(f'Active radar indices shape: {active_radar_indices.shape}')
-    # print(f'Active radar longitudes shape: {active_radar_longitudes.shape}')
 
     # Create an object of the predictor
     pred = Predictor(
@@ -92,21 +77,15 @@ def main():
         
         print(f'Simulator ODE output {count+1}: {traj}')
 
-        # print(f'Theta_R: {theta_R}')
-
-        pred.process_model(include_noise=True, verbose=False)
-
+        print(f'Process alt {pred.posterior_state[0] - R_e}')
+        pred.process_model(include_noise=True, verbose=True)
+        print(f'Jacobian alt {pred.prior_state[0] - R_e}')
         pred.eval_JacobianF(
             G=G, M_e=M_e, Cd=C_d,
             A=A, m=m_s, R_air=R_air,
             g0=g0, omega_E=omega_E, R_e=R_e, h_s=h_s, verbose=True)
 
         pred.update_prior_belief(verbose=False)
-
-        # This step checks whether or not measurements were recieved or not (in that case, they are NaN)
-
-        # Only update if a measurement is avaliable
-        # if np.isnan(meas).any() == False or np.isinf(meas).any() == False:
 
         pred.residual(measurement=meas, theta_R=theta_R, verbose=False)
 
@@ -115,10 +94,6 @@ def main():
         pred.kalman_gain(verbose=False)
 
         pred.assimilated_posterior_prediction(verbose=True)
-        
-        # Else, no update is made: preceed to the next time step using only the prior state
-        # else:
-        #     continue
 
         if count % nth_measurement == 0 and count > 0:
 
@@ -137,17 +112,14 @@ def main():
                 traj_times = outputs['posterior_traj_times']
                 posterior_trajectories_cartesian = outputs['posterior_traj_cart']
 
-                forecasted_crash_LLA = outputs['crash_site_forecasts_LLA_degree']
+                forecasted_crash_LLA = outputs['crash_site_forecasts']
+                # forecasted_crash_LLA = outputs['crash_site_forecasts_LLA_degree']
                 print(f'Shape of forecasted_crash_LLA: {forecasted_crash_LLA.shape}')
                 mean_forecasted_crash_LLA = outputs['mean_crash_site_forecasts_LLA_degree']
                 mean_forecasted_crash_time = outputs['mean_crash_times']
 
-                # print(f'Final mean forecasted crash site:\n Latitude: 0 deg, Longitude: {mean_forecasted_crash_LLA[-1][]}\n')
                 print(f'Mean time of forecasted crash from t0 = {t0} seconds: {mean_forecasted_crash_time[-1][0]} seconds.')
                 print(f'Actual time of crash from t0 = {t0} seconds: {crash_time} seconds.')
-                # print(f'True crash site:\n x = {predictor_utilities.physical_quantities(state=crash_site, initial_state=pred.initial_state)[0]/1000} km\n')
-                # print(f'Final forecasted state standard deviation:\nx_std = {pred.forecasted_states_std[-1][0]/1000} km\n')
-                # print(f'Time difference between confident forecast and real data crash: {times[-1] - pred.t} seconds.')
                 
                 vis = Visualiser(
                     times=traj_times,
@@ -162,9 +134,9 @@ def main():
 
                 vis.plot_crash_distribution()
 
-                # vis.plot_height_vs_time()
+                vis.plot_height_vs_time()
 
-                # vis.plot_orbit_map()
+                vis.plot_orbit_map()
 
                 break
 
@@ -173,8 +145,8 @@ def main():
         
 
     plt.figure()
-    plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='EKF state')
-    plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='EKF state')
+    plt.plot(traj_times, posterior_trajectories_LLA[:,-1]/1000, marker='s', label='Posterior EKF state')
+    # plt.plot(traj_times, prior_traj[:,-1]/1000, marker='s', label='EKF state')
     plt.plot(times, (real_traj[:,0]-R_e)/1000, marker='x', label='Real measurement data')
     # plt.xlim(0, 1000)
     # plt.plot(noisy_data[:,0]/1000, noisy_data[:,1]/1000, marker='.', label='Noisy measurement data ')
@@ -184,5 +156,4 @@ def main():
     plt.show()
 
 if __name__ == "__main__":
-
     main()

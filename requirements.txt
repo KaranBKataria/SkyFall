@@ -26,7 +26,6 @@ netCDF4==1.7.2
 numpy==2.2.4
 opencv-python==4.11.0.86
 packaging==24.2
-pandas==2.2.3
 parso==0.8.4
 pexpect==4.9.0
 pillow==11.1.0
