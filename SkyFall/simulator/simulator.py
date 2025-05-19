@@ -66,6 +66,9 @@ class Simulator:
                 measurement_noise: The radar station measurements perturbed with additive Gaussian noise
                 active_radar_stations_per_time: A history of active radar stations per time step by index
                 active_radar_station_longitudes_per_time: A history of active radar stations' longitudes per time
+                crash_site: the final crash state
+                crash_time: the final crash time
+                state_noiseless: the true trajectory of the simulator
         """
 
         if verbose is True:
@@ -135,7 +138,9 @@ class Simulator:
             # [0, 2pi] 
             active_radar_longitude = theta_R[index_active_radar]
             radar_measurements_noiseless = measurement_model_h(state=state, radar_longitude=active_radar_longitude)
-            
+
+            # active_radar_station_longitudes_per_time.append((np.degrees(active_radar_longitude) + 180) % 360 - 180)
+            # active_radar_station_longitudes_per_time.append((active_radar_longitude + np.pi) % (2*np.pi) - np.pi)
             active_radar_station_longitudes_per_time.append(active_radar_longitude)
 
             # Perturb the 'real' radar measurements with Gaussian noise 
